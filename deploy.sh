@@ -10,6 +10,21 @@ SERVICE_NAME="${SERVICE_NAME:-agent-finance}"
 IMAGE_NAME="${IMAGE_NAME:-agent-finance-api}"
 ARTIFACT_REPO="${ARTIFACT_REPO:-agent-finance}"
 
+# Cores
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
+info()    { echo -e "${BLUE}[INFO]${NC} $1"; }
+success() { echo -e "${GREEN}[OK]${NC} $1"; }
+error()   { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
+
+# Carrega variáveis do arquivo backend/.env se disponível
+if [[ -f "backend/.env" ]]; then
+  info "Carregando variáveis de ambiente do backend/.env..."
+  set -a
+  # Carrega ignorando linhas de comentário ou vazias
+  source <(grep -v '^#' backend/.env | grep -v '^\s*$')
+  set +a
+fi
+
 PROJECT_ID="${GCP_PROJECT_ID:-}"
 REGION="${GCP_REGION:-us-central1}"
 FIRESTORE_DATABASE="${FIRESTORE_DATABASE:-}"
@@ -21,12 +36,6 @@ FIREBASE_API_KEY="${FIREBASE_API_KEY:-}"
 FIREBASE_AUTH_DOMAIN="${FIREBASE_AUTH_DOMAIN:-}"
 FIREBASE_PROJECT_ID="${FIREBASE_PROJECT_ID:-${PROJECT_ID}}"
 FIREBASE_APP_ID="${FIREBASE_APP_ID:-}"
-
-# Cores
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
-info()    { echo -e "${BLUE}[INFO]${NC} $1"; }
-success() { echo -e "${GREEN}[OK]${NC} $1"; }
-error()   { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 
 # ─── Validações Estritas de Variáveis de Ambiente ─────────────────────────────
 [[ -z "$PROJECT_ID" || "$PROJECT_ID" == *"seu-projeto"* ]] && error "Configure GCP_PROJECT_ID explicitamente!"

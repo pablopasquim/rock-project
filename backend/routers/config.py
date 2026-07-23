@@ -11,12 +11,17 @@ router = APIRouter(prefix="/api/config", tags=["config"])
 def get_firebase_config(response: Response):
     """
     Retorna exclusivamente as configurações públicas do Firebase Web SDK
-    e o status seguro de dev bypass para o frontend (com no-cache e reload dinâmico em dev).
+    e o status seguro de dev bypass para o frontend (com no-cache).
     """
     if os.getenv("ENVIRONMENT", "development").lower() == "development":
-        env_path = os.path.join(os.path.dirname(__file__), "..", ".env")
-        if os.path.exists(env_path):
-            load_dotenv(env_path, override=True)
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        env_paths = [
+            os.path.join(base_dir, ".env"),
+            os.path.join(os.path.dirname(base_dir), ".env")
+        ]
+        for path in env_paths:
+            if os.path.exists(path):
+                load_dotenv(path, override=True)
 
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     response.headers["Pragma"] = "no-cache"

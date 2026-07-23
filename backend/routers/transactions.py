@@ -1,18 +1,22 @@
-from fastapi import APIRouter, HTTPException, Query
+import calendar
+from datetime import datetime
 from typing import Optional, List
+from fastapi import APIRouter, HTTPException, Query, Depends
 from backend.models.schemas import TransactionCreate, TransactionUpdate, TransactionResponse
+from backend.services.auth_service import get_current_user
 import backend.services.firestore_service as fs
 
-router = APIRouter(prefix="/api/transactions", tags=["transactions"])
+router = APIRouter(
+    prefix="/api/transactions",
+    tags=["transactions"],
+    dependencies=[Depends(get_current_user)],
+)
 
 VALID_CATEGORIES = [
     "alimentacao", "transporte", "moradia", "lazer",
     "saude", "educacao", "salario", "freelance", "outros"
 ]
 
-
-import calendar
-from datetime import datetime
 
 def add_months(date_str: str, months_to_add: int) -> str:
     dt = datetime.strptime(date_str, "%Y-%m-%d")
@@ -24,10 +28,17 @@ def add_months(date_str: str, months_to_add: int) -> str:
 
 
 @router.post("", response_model=TransactionResponse, status_code=201)
-def create_transaction(transaction: TransactionCreate):
-    """Cria uma nova transação (receita ou despesa), com suporte a parcelamento."""
+def create_transaction(
+    transaction: TransactionCreate,
+    current_user: dict = Depends(get_current_user),
+):
+    """Cria uma nova transação (receita ou despesa), com suporte a parcelamento e metadados de autor."""
     data = transaction.model_dump()
     installments = data.pop("installments", None)
+
+    # Injeta metadados de auditoria do household
+    data["created_by_uid"] = current_user.get("uid")
+    data["created_by_email"] = current_user.get("email")
 
     if installments and installments > 1 and data["type"] == "expense":
         base_desc = data["description"]
@@ -35,7 +46,6 @@ def create_transaction(transaction: TransactionCreate):
         total_amount = data["amount"]
         
         installment_amount = round(total_amount / installments, 2)
-        # A última parcela absorve possíveis diferenças de arredondamento (ex: 100/3 = 33.33, 33.33, 33.34)
         last_installment_amount = round(total_amount - (installment_amount * (installments - 1)), 2)
 
         transactions_to_create = []
@@ -50,7 +60,6 @@ def create_transaction(transaction: TransactionCreate):
         return fs.create_transactions_batch(transactions_to_create)
     else:
         return fs.create_transaction(data)
-
 
 
 @router.get("", response_model=List[TransactionResponse])
@@ -70,11 +79,19 @@ def list_transactions(
 
 
 @router.put("/{tx_id}", response_model=TransactionResponse)
-def update_transaction(tx_id: str, updates: TransactionUpdate):
-    """Atualiza uma transação existente."""
+def update_transaction(
+    tx_id: str,
+    updates: TransactionUpdate,
+    current_user: dict = Depends(get_current_user),
+):
+    """Atualiza uma transação existente adicionando metadados de edição."""
     data = {k: v for k, v in updates.model_dump().items() if v is not None}
     if not data:
         raise HTTPException(status_code=400, detail="Nenhum campo para atualizar")
+
+    data["updated_by_uid"] = current_user.get("uid")
+    data["updated_by_email"] = current_user.get("email")
+
     result = fs.update_transaction(tx_id, data)
     if not result:
         raise HTTPException(status_code=404, detail="Transação não encontrada")

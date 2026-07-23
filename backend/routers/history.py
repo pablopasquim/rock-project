@@ -1,12 +1,17 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Depends
 from fastapi.responses import StreamingResponse
 from typing import List
 import io
 import csv
 from backend.models.schemas import MonthDetail, MonthComparison
+from backend.services.auth_service import get_current_user
 import backend.services.firestore_service as fs
 
-router = APIRouter(prefix="/api/history", tags=["history"])
+router = APIRouter(
+    prefix="/api/history",
+    tags=["history"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 @router.get("/months")

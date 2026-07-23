@@ -16,8 +16,18 @@ def _get_client() -> firestore.Client:
     return _db_client
 
 
+def get_household_id() -> str:
+    return os.getenv("HOUSEHOLD_ID", "rock-family")
+
+
+def _get_transactions_collection():
+    db = _get_client()
+    household_id = get_household_id()
+    return db.collection("households").document(household_id).collection("transactions")
+
+
 def _transaction_to_dict(doc) -> Dict[str, Any]:
-    data = doc.to_dict()
+    data = doc.to_dict() or {}
     created_at = data.get("created_at")
     if hasattr(created_at, "isoformat"):
         data["created_at"] = created_at.isoformat()
@@ -30,7 +40,7 @@ def _transaction_to_dict(doc) -> Dict[str, Any]:
 # ─── CRUD ───────────────────────────────────────────────────────────────────
 
 def create_transaction(data: Dict[str, Any]) -> Dict[str, Any]:
-    db = _get_client()
+    collection = _get_transactions_collection()
     date_str = data["date"]
     month_key = date_str[:7]  # "YYYY-MM"
     doc_data = {
@@ -38,7 +48,7 @@ def create_transaction(data: Dict[str, Any]) -> Dict[str, Any]:
         "month_key": month_key,
         "created_at": firestore.SERVER_TIMESTAMP,
     }
-    ref = db.collection("transactions").add(doc_data)
+    ref = collection.add(doc_data)
     doc = ref[1].get()
     return _transaction_to_dict(doc)
 
@@ -46,6 +56,7 @@ def create_transaction(data: Dict[str, Any]) -> Dict[str, Any]:
 def create_transactions_batch(transactions_data: List[Dict[str, Any]]) -> Dict[str, Any]:
     db = _get_client()
     batch = db.batch()
+    collection = _get_transactions_collection()
     
     first_ref = None
     
@@ -57,15 +68,13 @@ def create_transactions_batch(transactions_data: List[Dict[str, Any]]) -> Dict[s
             "month_key": month_key,
             "created_at": firestore.SERVER_TIMESTAMP,
         }
-        ref = db.collection("transactions").document()
+        ref = collection.document()
         if not first_ref:
             first_ref = ref
         batch.set(ref, doc_data)
         
     batch.commit()
-    # Retorna apenas o primeiro para simplificar o response do endpoint
     return _transaction_to_dict(first_ref.get())
-
 
 
 def get_transactions(
@@ -74,8 +83,7 @@ def get_transactions(
     tx_type: Optional[str] = None,
     limit: int = 200,
 ) -> List[Dict[str, Any]]:
-    db = _get_client()
-    query = db.collection("transactions")
+    query = _get_transactions_collection()
 
     if month_key:
         query = query.where(filter=FieldFilter("month_key", "==", month_key))
@@ -90,21 +98,18 @@ def get_transactions(
 
 
 def get_transaction_by_id(tx_id: str) -> Optional[Dict[str, Any]]:
-    db = _get_client()
-    doc = db.collection("transactions").document(tx_id).get()
+    doc = _get_transactions_collection().document(tx_id).get()
     if not doc.exists:
         return None
     return _transaction_to_dict(doc)
 
 
 def update_transaction(tx_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    db = _get_client()
-    ref = db.collection("transactions").document(tx_id)
+    ref = _get_transactions_collection().document(tx_id)
     doc = ref.get()
     if not doc.exists:
         return None
 
-    # Recalculate month_key if date changed
     if "date" in updates:
         updates["month_key"] = updates["date"][:7]
 
@@ -113,8 +118,7 @@ def update_transaction(tx_id: str, updates: Dict[str, Any]) -> Optional[Dict[str
 
 
 def delete_transaction(tx_id: str) -> bool:
-    db = _get_client()
-    ref = db.collection("transactions").document(tx_id)
+    ref = _get_transactions_collection().document(tx_id)
     if not ref.get().exists:
         return False
     ref.delete()
@@ -159,7 +163,6 @@ def get_by_category(month_key: str) -> List[Dict[str, Any]]:
 
 def get_monthly_evolution(months: int = 12) -> List[Dict[str, Any]]:
     """Retorna os últimos N meses com dados."""
-    db = _get_client()
     now = datetime.utcnow()
     month_keys = []
     for i in range(months - 1, -1, -1):
@@ -172,11 +175,8 @@ def get_monthly_evolution(months: int = 12) -> List[Dict[str, Any]]:
     
     oldest_month = month_keys[0]
 
-    # Fetch all transactions from the oldest month onwards in a single query
-    # to avoid 12 round-trips to the database.
-    docs = db.collection("transactions").where(filter=FieldFilter("month_key", ">=", oldest_month)).stream()
+    docs = _get_transactions_collection().where(filter=FieldFilter("month_key", ">=", oldest_month)).stream()
     
-    # Initialize summary map
     summary_map = {mk: {"income": 0.0, "expenses": 0.0, "balance": 0.0} for mk in month_keys}
     
     for doc in docs:
@@ -205,25 +205,13 @@ def get_monthly_evolution(months: int = 12) -> List[Dict[str, Any]]:
 
 def get_available_months() -> List[str]:
     """Retorna meses distintos que têm transações."""
-    db = _get_client()
-    docs = db.collection("transactions").stream()
+    docs = _get_transactions_collection().stream()
     months = set()
     for doc in docs:
         data = doc.to_dict()
         if "month_key" in data:
             months.add(data["month_key"])
     return sorted(months, reverse=True)
-
-
-# ─── Chat History ────────────────────────────────────────────────────────────
-
-def save_chat_message(role: str, content: str) -> None:
-    db = _get_client()
-    db.collection("chat_history").add({
-        "role": role,
-        "content": content,
-        "created_at": firestore.SERVER_TIMESTAMP,
-    })
 
 
 def get_financial_context(month_key: str) -> str:

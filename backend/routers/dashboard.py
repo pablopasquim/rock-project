@@ -1,10 +1,15 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Depends
 from typing import List
 from datetime import datetime, timezone
 from backend.models.schemas import DashboardSummary, CategorySummary, MonthlyEvolution
+from backend.services.auth_service import get_current_user
 import backend.services.firestore_service as fs
 
-router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
+router = APIRouter(
+    prefix="/api/dashboard",
+    tags=["dashboard"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 def _current_month() -> str:

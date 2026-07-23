@@ -249,24 +249,31 @@ const History = {
   },
 
   async exportCSV() {
-    if (window.Auth && typeof window.Auth.getToken === 'function') {
-      const token = await window.Auth.getToken();
-      fetch(`/api/history/export?month=${this._currentMonth}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      .then(res => res.blob())
-      .then(blob => {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `transacoes_${this._currentMonth}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-      })
-      .catch(err => console.error("Erro ao exportar CSV:", err));
-    } else {
-      window.open(`/api/history/export?month=${this._currentMonth}`, '_blank');
+    try {
+      const headers = {};
+      if (window.Auth && typeof window.Auth.getToken === 'function') {
+        const token = await window.Auth.getToken();
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const res = await fetch(`/api/history/export?month=${this._currentMonth}`, { headers });
+      if (!res.ok) {
+        toast("Erro ao exportar CSV.", "error");
+        return;
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `transacoes_${this._currentMonth}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Erro ao exportar CSV:", err);
+      toast("Falha ao exportar CSV", "error");
     }
   },
 };

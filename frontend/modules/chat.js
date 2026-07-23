@@ -169,21 +169,19 @@ const Chat = {
   },
 
   _parseMarkdown(text) {
-    let rawHtml = '';
-    if (window.marked) {
-      rawHtml = marked.parse(text);
-    } else {
-      rawHtml = escapeHTML(text)
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*(.*?)\*/g, '<em>$1</em>')
-        .replace(/\n/g, '<br>');
+    if (!text) return '';
+
+    // Se DOMPurify NÃO estiver disponível, fazemos fallback de escape estrito sem usar o HTML do marked
+    if (!window.DOMPurify) {
+      return escapeHTML(text).replace(/\n/g, '<br>');
     }
 
-    // Sanitiza HTML com DOMPurify para prevenir XSS
-    if (window.DOMPurify) {
-      return window.DOMPurify.sanitize(rawHtml);
-    }
-    return rawHtml;
+    // Com DOMPurify disponível, fazemos parse com marked e sanitizamos restringindo a tags puras de texto
+    const rawHtml = window.marked ? window.marked.parse(text) : escapeHTML(text).replace(/\n/g, '<br>');
+    return window.DOMPurify.sanitize(rawHtml, {
+      ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'a', 'p', 'ul', 'ol', 'li', 'code', 'pre', 'br', 'span', 'blockquote'],
+      ALLOWED_ATTR: ['href', 'target', 'rel', 'class'],
+    });
   },
 
   _typingIndicator() {

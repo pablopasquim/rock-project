@@ -24,14 +24,24 @@ const API = {
     return headers;
   },
 
-  async get(path) {
-    const headers = await this._getHeaders();
-    const res = await fetch(API_BASE + path, { headers });
+  _handleStatus(res) {
     if (res.status === 401) {
       if (window.Auth) window.Auth.logout();
       throw new Error("Sessão expirada. Faça login novamente.");
     }
-    if (!res.ok) throw new Error(`Erro na requisição (${res.status})`);
+    if (res.status === 403) {
+      toast("Seu e-mail não está autorizado a acessar este sistema.", "error");
+      throw new Error("Acesso não autorizado para este e-mail.");
+    }
+    if (!res.ok) {
+      throw new Error(`Erro na requisição (${res.status})`);
+    }
+  },
+
+  async get(path) {
+    const headers = await this._getHeaders();
+    const res = await fetch(API_BASE + path, { headers });
+    this._handleStatus(res);
     return res.json();
   },
 
@@ -42,11 +52,7 @@ const API = {
       headers,
       body: JSON.stringify(body),
     });
-    if (res.status === 401) {
-      if (window.Auth) window.Auth.logout();
-      throw new Error("Sessão expirada. Faça login novamente.");
-    }
-    if (!res.ok) throw new Error(`Erro na requisição (${res.status})`);
+    this._handleStatus(res);
     return res.json();
   },
 
@@ -57,22 +63,14 @@ const API = {
       headers,
       body: JSON.stringify(body),
     });
-    if (res.status === 401) {
-      if (window.Auth) window.Auth.logout();
-      throw new Error("Sessão expirada. Faça login novamente.");
-    }
-    if (!res.ok) throw new Error(`Erro na requisição (${res.status})`);
+    this._handleStatus(res);
     return res.json();
   },
 
   async delete(path) {
     const headers = await this._getHeaders();
     const res = await fetch(API_BASE + path, { method: 'DELETE', headers });
-    if (res.status === 401) {
-      if (window.Auth) window.Auth.logout();
-      throw new Error("Sessão expirada. Faça login novamente.");
-    }
-    if (!res.ok) throw new Error(`Erro na requisição (${res.status})`);
+    this._handleStatus(res);
     return res.status !== 204 ? res.json() : null;
   },
 };
@@ -332,7 +330,6 @@ const App = {
       </button>
     `).join('');
 
-    // Attach click listeners to category buttons (no inline onclick)
     grid.querySelectorAll('.cat-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         App.selectCategory(btn.dataset.catId);

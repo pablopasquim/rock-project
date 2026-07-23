@@ -2,7 +2,7 @@ import time
 import logging
 import threading
 from typing import Dict, List
-from fastapi import APIRouter, HTTPException, Depends, status, Response
+from fastapi import APIRouter, HTTPException, Depends, status
 from backend.models.schemas import ChatRequest, ChatResponse, ChatMessage
 from backend.services.auth_service import get_current_user
 import backend.services.firestore_service as fs
@@ -35,7 +35,6 @@ def check_rate_limit(user_id: str) -> None:
 
     with _rate_limit_lock:
         timestamps = _rate_limit_store.get(user_id, [])
-        # Remove requisições expiradas
         timestamps = [ts for ts in timestamps if ts > cutoff]
 
         if len(timestamps) >= RATE_LIMIT_REQUESTS:
@@ -69,22 +68,26 @@ def chat(
         # Busca o contexto financeiro usando o month_key enviado pelo frontend
         financial_context = fs.get_financial_context(request.month_key)
 
-        # Filtra o histórico recebido (aceitando somente roles válidos 'user' e 'assistant')
-        history_clean = [
-            msg for msg in (request.history or [])
-            if msg.role in ("user", "assistant")
-        ][-10:]
+        # Trata o histórico recebido do cliente como NÃO CONFIÁVEL:
+        # Para evitar Prompt Injection por mensagens 'assistant' forjadas,
+        # aceitamos apenas as mensagens do usuário (role 'user') do histórico recente.
+        raw_history = request.history or []
+        user_history_only = [
+            msg for msg in raw_history
+            if msg.role == "user" and msg.content.strip()
+        ][-5:]  # Máximo 5 perguntas passadas do usuário
 
         response_text = gemini.chat_with_context(
             user_message=request.message,
-            history=history_clean,
+            history=user_history_only,
             financial_context=financial_context,
         )
 
-        # Monta o histórico atualizado para devolver à sessão do cliente (sem salvar no Firestore)
-        updated_history = list(request.history or [])
+        # Monta o histórico limpo limitado às últimas 10 mensagens no total
+        updated_history = list(raw_history)
         updated_history.append(ChatMessage(role="user", content=request.message))
         updated_history.append(ChatMessage(role="assistant", content=response_text))
+        updated_history = updated_history[-10:]
 
         return ChatResponse(response=response_text, history=updated_history)
 
@@ -98,7 +101,6 @@ def chat(
         raise
     except Exception as e:
         logger.error(f"Erro interno no processamento do chat: {e}", exc_info=True)
-        # Não vaza detalhes de exceção interna para o cliente
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erro ao processar sua mensagem. Tente novamente mais tarde.",

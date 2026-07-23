@@ -1,21 +1,24 @@
 #!/usr/bin/env bash
-# ─── Rock Finance — Secure Deploy Script ─────────────────────────────────────
+# ─── Agent Finance — Secure Deploy Script ─────────────────────────────────────
 # Uso: bash deploy.sh
 # Pré-requisitos: gcloud CLI autenticado, Secret Manager configurado
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
-PROJECT_ID="${GCP_PROJECT_ID:-rock-finance-prod}"
-REGION="${GCP_REGION:-us-central1}"
-SERVICE_NAME="rock-finance"
-IMAGE_NAME="rock-finance-api"
+# Preserva nome real do serviço da infraestrutura existente
+SERVICE_NAME="${SERVICE_NAME:-agent-finance}"
+IMAGE_NAME="${IMAGE_NAME:-agent-finance-api}"
+ARTIFACT_REPO="${ARTIFACT_REPO:-agent-finance}"
 
-HOUSEHOLD_ID="${HOUSEHOLD_ID:-rock-family}"
-ALLOWED_USER_EMAILS="${ALLOWED_USER_EMAILS:-user1@example.com,user2@example.com}"
-APP_ORIGINS="${APP_ORIGINS:-https://${SERVICE_NAME}-${PROJECT_ID}.${REGION}.run.app}"
+PROJECT_ID="${GCP_PROJECT_ID:-}"
+REGION="${GCP_REGION:-us-central1}"
+FIRESTORE_DATABASE="${FIRESTORE_DATABASE:-}"
+HOUSEHOLD_ID="${HOUSEHOLD_ID:-}"
+ALLOWED_USER_EMAILS="${ALLOWED_USER_EMAILS:-}"
+APP_ORIGINS="${APP_ORIGINS:-}"
 
 FIREBASE_API_KEY="${FIREBASE_API_KEY:-}"
-FIREBASE_AUTH_DOMAIN="${FIREBASE_AUTH_DOMAIN:-${PROJECT_ID}.firebaseapp.com}"
+FIREBASE_AUTH_DOMAIN="${FIREBASE_AUTH_DOMAIN:-}"
 FIREBASE_PROJECT_ID="${FIREBASE_PROJECT_ID:-${PROJECT_ID}}"
 FIREBASE_APP_ID="${FIREBASE_APP_ID:-}"
 
@@ -25,11 +28,17 @@ info()    { echo -e "${BLUE}[INFO]${NC} $1"; }
 success() { echo -e "${GREEN}[OK]${NC} $1"; }
 error()   { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 
-# Validações pré-deploy
-[[ -z "$PROJECT_ID" || "$PROJECT_ID" == "seu-projeto-gcp" ]] && error "Configure GCP_PROJECT_ID antes de rodar o deploy!"
-[[ -z "$ALLOWED_USER_EMAILS" ]] && error "Configure ALLOWED_USER_EMAILS antes de rodar o deploy!"
+# ─── Validações Estritas de Variáveis de Ambiente ─────────────────────────────
+[[ -z "$PROJECT_ID" || "$PROJECT_ID" == *"seu-projeto"* ]] && error "Configure GCP_PROJECT_ID explicitamente!"
+[[ -z "$FIRESTORE_DATABASE" ]] && error "Configure FIRESTORE_DATABASE explicitamente (ex: '(default)' ou o nome do seu banco)!"
+[[ -z "$HOUSEHOLD_ID" || "$HOUSEHOLD_ID" == *"placeholder"* ]] && error "Configure HOUSEHOLD_ID explicitamente!"
+[[ -z "$ALLOWED_USER_EMAILS" ]] && error "Configure ALLOWED_USER_EMAILS explicitamente!"
+[[ "$ALLOWED_USER_EMAILS" == *"example.com"* ]] && error "ALLOWED_USER_EMAILS não pode conter e-mails 'example.com' de placeholder!"
+[[ -z "$APP_ORIGINS" ]] && error "Configure APP_ORIGINS com a URL de produção do seu app!"
+[[ "$APP_ORIGINS" == *"DOMINIO-DO-CLOUD-RUN"* ]] && error "APP_ORIGINS não pode ser um placeholder!"
+[[ -z "$FIREBASE_API_KEY" || -z "$FIREBASE_APP_ID" ]] && error "Configure FIREBASE_API_KEY e FIREBASE_APP_ID explicitamente!"
 
-info "Iniciando validação e build para $PROJECT_ID ($SERVICE_NAME)..."
+info "Iniciando validação e build para $PROJECT_ID (Serviço: $SERVICE_NAME)..."
 
 # 1. Configurar gcloud
 gcloud config set project "$PROJECT_ID" --quiet
@@ -43,31 +52,38 @@ gcloud services enable \
   secretmanager.googleapis.com \
   --quiet
 
-# 3. Gerar arquivo temporário de env-vars (YAML) para tratar com segurança valores com vírgula
-ENV_YAML_TMP="tmp_env_vars_deploy.yaml"
+# 3. Verificar existência do repositório no Artifact Registry
+info "Verificando se o repositório '$ARTIFACT_REPO' existe no Artifact Registry ($REGION)..."
+if ! gcloud artifacts repositories describe "$ARTIFACT_REPO" --location="$REGION" &>/dev/null; then
+  error "Repositório '$ARTIFACT_REPO' não existe no Artifact Registry na região '$REGION'. Crie o repositório primeiro."
+fi
+
+# 4. Gerar arquivo temporário de env-vars usando mktemp e chmod 600 seguro
+ENV_YAML_TMP=$(mktemp /tmp/agent_finance_env_XXXXXX.yaml 2>/dev/null || mktemp tmp_agent_finance_env_XXXXXX.yaml)
+chmod 600 "$ENV_YAML_TMP"
 trap 'rm -f "$ENV_YAML_TMP"' EXIT
 
 cat <<EOF > "$ENV_YAML_TMP"
 ENVIRONMENT: "production"
 GCP_PROJECT_ID: "${PROJECT_ID}"
-FIRESTORE_DATABASE: "(default)"
+FIRESTORE_DATABASE: "${FIRESTORE_DATABASE}"
 HOUSEHOLD_ID: "${HOUSEHOLD_ID}"
 ALLOWED_USER_EMAILS: "${ALLOWED_USER_EMAILS}"
 APP_ORIGINS: "${APP_ORIGINS}"
 FIREBASE_API_KEY: "${FIREBASE_API_KEY}"
-FIREBASE_AUTH_DOMAIN: "${FIREBASE_AUTH_DOMAIN}"
+FIREBASE_AUTH_DOMAIN: "${FIREBASE_AUTH_DOMAIN:-${PROJECT_ID}.firebaseapp.com}"
 FIREBASE_PROJECT_ID: "${FIREBASE_PROJECT_ID}"
 FIREBASE_APP_ID: "${FIREBASE_APP_ID}"
 AUTH_DEV_BYPASS: "false"
 EOF
 
-# 4. Build via Google Cloud Build
-IMAGE_URI="${REGION}-docker.pkg.dev/${PROJECT_ID}/rock-finance/${IMAGE_NAME}:latest"
+# 5. Build via Google Cloud Build
+IMAGE_URI="${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REPO}/${IMAGE_NAME}:latest"
 info "Construindo imagem de produção via Cloud Build: $IMAGE_URI"
 gcloud builds submit --tag "$IMAGE_URI" .
 success "Imagem construída com sucesso!"
 
-# 5. Deploy no Cloud Run (max-instances=1, secrets via Secret Manager)
+# 6. Deploy no Cloud Run (max-instances=1, secrets via Secret Manager)
 info "Fazendo deploy no Cloud Run..."
 gcloud run deploy "$SERVICE_NAME" \
   --image="$IMAGE_URI" \
@@ -83,7 +99,12 @@ gcloud run deploy "$SERVICE_NAME" \
   --set-secrets="GEMINI_API_KEY=gemini-api-key:latest" \
   --quiet
 
-SERVICE_URL=$(gcloud run services describe "$SERVICE_NAME" --region="$REGION" --format="value(status.url)")
+# 7. Obter e validar a URL real do Cloud Run
+SERVICE_URL=$(gcloud run services describe "$SERVICE_NAME" --region="$REGION" --format="value(status.url)" 2>/dev/null || echo "")
+
+if [[ -z "$SERVICE_URL" ]]; then
+  error "Não foi possível obter a URL do Cloud Run para o serviço '$SERVICE_NAME'."
+fi
 
 success "Deploy de produção concluído com sucesso!"
 echo ""

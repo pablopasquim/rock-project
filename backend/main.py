@@ -11,14 +11,14 @@ from dotenv import load_dotenv
 env_path = os.path.join(os.path.dirname(__file__), ".env")
 load_dotenv(env_path, override=True)
 
-from backend.services.auth_service import validate_dev_bypass_startup
+from backend.services.auth_service import validate_auth_startup
 from backend.routers import transactions, dashboard, history, chat, config
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Validação de segurança no startup
-    validate_dev_bypass_startup()
+    # Validação rigorosa no startup (dev bypass guard, allowlist, configs do Firebase)
+    validate_auth_startup()
     print("🚀 Rock Finance API iniciando...")
     yield
     print("👋 Rock Finance API encerrando...")
@@ -53,15 +53,16 @@ app.add_middleware(
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
     response: Response = await call_next(request)
-    # CSP compatível com Firebase, Google Fonts, Chart.js, Lucide e Marked
+    # CSP sem 'unsafe-inline' em script-src
     csp_policy = (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://www.gstatic.com https://apis.google.com; "
+        "script-src 'self' https://cdn.jsdelivr.net https://unpkg.com https://www.gstatic.com https://apis.google.com; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com; "
         "img-src 'self' data: https:; "
-        "connect-src 'self' https://*.firebase Financial https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com;"
+        "connect-src 'self' https://*.firebaseio.com https://*.firebaseapp.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com;"
     )
+    response.headers["Content-Security-Policy"] = csp_policy
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"

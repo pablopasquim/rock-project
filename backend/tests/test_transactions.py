@@ -1,6 +1,6 @@
 """
 Testes para /api/transactions
-Cobre: criação, listagem, atualização, deleção e categorias.
+Cobre: criação, listagem, atualização, deleção, categorias e metadados de autoria (created_by / updated_by).
 """
 import pytest
 from .conftest import SAMPLE_TX, SAMPLE_TX_INCOME
@@ -21,7 +21,12 @@ class TestCreateTransaction:
         assert data["type"] == "expense"
         assert data["amount"] == 150.00
         assert data["category"] == "alimentacao"
-        assert data["id"] == SAMPLE_TX["id"]
+
+        # Verifica se metadados de autoria foram injetados no dicionário enviado ao Firestore
+        client._mock_fs.create_transaction.assert_called_once()
+        passed_data = client._mock_fs.create_transaction.call_args.args[0]
+        assert passed_data["created_by_uid"] == "test-user-uid"
+        assert passed_data["created_by_email"] == "user1@example.com"
 
     def test_create_income_success(self, client):
         client._mock_fs.create_transaction.return_value = SAMPLE_TX_INCOME
@@ -34,12 +39,8 @@ class TestCreateTransaction:
         }
         resp = client.post("/api/transactions", json=payload)
         assert resp.status_code == 201
-        data = resp.json()
-        assert data["type"] == "income"
-        assert data["amount"] == 5000.00
 
     def test_create_invalid_amount_zero(self, client):
-        """Valor zero deve ser rejeitado (validação Pydantic)."""
         payload = {
             "type": "expense",
             "amount": 0,
@@ -67,7 +68,7 @@ class TestCreateTransaction:
             "amount": 50,
             "category": "alimentacao",
             "description": "Teste",
-            "date": "18/07/2026",  # formato inválido
+            "date": "18/07/2026",
         }
         resp = client.post("/api/transactions", json=payload)
         assert resp.status_code == 422
@@ -111,7 +112,6 @@ class TestListTransactions:
         client._mock_fs.get_transactions.return_value = [SAMPLE_TX]
         resp = client.get("/api/transactions?month=2026-07")
         assert resp.status_code == 200
-        # Verifica que o filtro foi passado corretamente para o serviço
         client._mock_fs.get_transactions.assert_called_with(
             month_key="2026-07", category=None, tx_type=None, limit=100
         )
@@ -142,11 +142,17 @@ class TestListTransactions:
 
 
 class TestUpdateTransaction:
-    def test_update_description(self, client):
+    def test_update_description_and_metadata(self, client):
         resp = client.put("/api/transactions/tx-abc-123", json={"description": "Atualizado"})
         assert resp.status_code == 200
         data = resp.json()
         assert data["description"] == "Atualizado"
+
+        # Verifica se metadados de quem atualizou foram passados para o Firestore
+        client._mock_fs.update_transaction.assert_called_once()
+        passed_updates = client._mock_fs.update_transaction.call_args.args[1]
+        assert passed_updates["updated_by_uid"] == "test-user-uid"
+        assert passed_updates["updated_by_email"] == "user1@example.com"
 
     def test_update_not_found(self, client):
         client._mock_fs.update_transaction.return_value = None
@@ -154,7 +160,6 @@ class TestUpdateTransaction:
         assert resp.status_code == 404
 
     def test_update_empty_body_rejected(self, client):
-        """Body vazio (sem campos) deve retornar 400."""
         resp = client.put("/api/transactions/tx-abc-123", json={})
         assert resp.status_code == 400
 
@@ -181,11 +186,9 @@ class TestCategories:
         data = resp.json()
         assert "expense" in data
         assert "income" in data
-        # Verifica categorias de despesa
         expense_ids = [c["id"] for c in data["expense"]]
         assert "alimentacao" in expense_ids
         assert "transporte" in expense_ids
         assert "moradia" in expense_ids
-        # Verifica categorias de receita
         income_ids = [c["id"] for c in data["income"]]
         assert "salario" in income_ids

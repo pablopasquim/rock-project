@@ -37,6 +37,7 @@ FIREBASE_API_KEY="${FIREBASE_API_KEY:-}"
 FIREBASE_AUTH_DOMAIN="${FIREBASE_AUTH_DOMAIN:-}"
 FIREBASE_PROJECT_ID="${FIREBASE_PROJECT_ID:-${PROJECT_ID}}"
 FIREBASE_APP_ID="${FIREBASE_APP_ID:-}"
+GEMINI_KEY="${GEMINI_API_KEY:-}"
 
 # ─── Validações Estritas de Variáveis de Ambiente ─────────────────────────────
 [[ -z "$PROJECT_ID" || "$PROJECT_ID" == *"seu-projeto"* ]] && error "Configure GCP_PROJECT_ID explicitamente!"
@@ -62,7 +63,26 @@ gcloud services enable \
   secretmanager.googleapis.com \
   --quiet
 
-# 3. Validar URL atual do Cloud Run antes do deploy (se o serviço já existir)
+# 3. Garantir permissões de Secret Manager para a Service Account do Cloud Run
+PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format="value(projectNumber)" 2>/dev/null || echo "")
+if [[ -n "$PROJECT_NUMBER" ]]; then
+  COMPUTE_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+  info "Garantindo permissões no Secret Manager para a Service Account: $COMPUTE_SA"
+  gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+    --member="serviceAccount:${COMPUTE_SA}" \
+    --role="roles/secretmanager.secretAccessor" \
+    --quiet &>/dev/null || true
+fi
+
+# 4. Verificar e provisionar a secret 'gemini-api-key' no Secret Manager se não existir
+if [[ -n "$GEMINI_KEY" ]]; then
+  if ! gcloud secrets describe gemini-api-key --project="$PROJECT_ID" &>/dev/null; then
+    info "Criando secret 'gemini-api-key' no Secret Manager..."
+    printf "%s" "$GEMINI_KEY" | gcloud secrets create gemini-api-key --data-file=- --project="$PROJECT_ID" --quiet
+  fi
+fi
+
+# 5. Validar URL atual do Cloud Run antes do deploy (se o serviço já existir)
 EXISTING_URL=$(gcloud run services describe "$SERVICE_NAME" --region="$REGION" --format="value(status.url)" 2>/dev/null || echo "")
 
 if [[ -n "$EXISTING_URL" ]]; then
@@ -72,13 +92,13 @@ if [[ -n "$EXISTING_URL" ]]; then
   fi
 fi
 
-# 4. Verificar existência do repositório no Artifact Registry
+# 6. Verificar existência do repositório no Artifact Registry
 info "Verificando se o repositório '$ARTIFACT_REPO' existe no Artifact Registry ($REGION)..."
 if ! gcloud artifacts repositories describe "$ARTIFACT_REPO" --location="$REGION" &>/dev/null; then
   error "Repositório '$ARTIFACT_REPO' não existe no Artifact Registry na região '$REGION'. Crie o repositório primeiro."
 fi
 
-# 5. Gerar arquivo temporário de env-vars usando mktemp e chmod 600 seguro
+# 7. Gerar arquivo temporário de env-vars seguro
 ENV_YAML_TMP=$(mktemp /tmp/agent_finance_env_XXXXXX.yaml 2>/dev/null || mktemp tmp_agent_finance_env_XXXXXX.yaml)
 chmod 600 "$ENV_YAML_TMP"
 trap 'rm -f "$ENV_YAML_TMP"' EXIT
@@ -97,13 +117,13 @@ FIREBASE_APP_ID: "${FIREBASE_APP_ID}"
 AUTH_DEV_BYPASS: "false"
 EOF
 
-# 6. Build via Google Cloud Build
+# 8. Build via Google Cloud Build
 IMAGE_URI="${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REPO}/${IMAGE_NAME}:latest"
 info "Construindo imagem de produção via Cloud Build: $IMAGE_URI"
 gcloud builds submit --tag "$IMAGE_URI" .
 success "Imagem construída com sucesso!"
 
-# 7. Deploy no Cloud Run (max-instances=1, secrets via Secret Manager)
+# 9. Deploy no Cloud Run (max-instances=1, secrets via Secret Manager)
 info "Fazendo deploy no Cloud Run..."
 gcloud run deploy "$SERVICE_NAME" \
   --image="$IMAGE_URI" \
@@ -119,7 +139,7 @@ gcloud run deploy "$SERVICE_NAME" \
   --set-secrets="GEMINI_API_KEY=gemini-api-key:latest" \
   --quiet
 
-# 8. Obter e validar a URL pós-deploy do Cloud Run
+# 10. Obter e validar a URL pós-deploy do Cloud Run
 SERVICE_URL=$(gcloud run services describe "$SERVICE_NAME" --region="$REGION" --format="value(status.url)" 2>/dev/null || echo "")
 
 if [[ -z "$SERVICE_URL" ]]; then

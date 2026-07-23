@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Rock Finance — Gerencie suas finanças pessoais com inteligência artificial. Rastreie gastos, visualize tendências e converse com sua IA financeira pessoal." />
+  <meta name="description" content="Rock Finance — Gerencie suas finanças pessoais com inteligência artificial. Rastreie gastos, visualize tendências e converse com o Rock Advisor." />
   <title>Rock Finance — Finanças Pessoais com IA</title>
 
   <!-- Preconnect -->
@@ -13,17 +13,44 @@
   <!-- Styles -->
   <link rel="stylesheet" href="/static/index.css" />
 
-  <!-- Chart.js -->
+  <!-- Dependências Externas (Versões Estáveis Fixadas) -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
-
-  <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-
-  <!-- Marked.js (Markdown parser para o chat) -->
   <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.9/dist/purify.min.js"></script>
 </head>
 <body>
-  <div id="app">
+
+  <!-- Tela de Login Acessível (Inicialmente visível se não autenticado) -->
+  <div id="login-screen" class="login-overlay" style="display: flex;">
+    <div class="login-card">
+      <div class="login-header">
+        <img src="/static/image/logo2.png" alt="Rock Finance Logo" class="login-logo" />
+        <h1 class="login-title">Rock Finance</h1>
+        <p class="login-subtitle">Entre para acessar suas finanças familiares</p>
+      </div>
+
+      <div id="login-error-msg" class="login-error-alert" role="alert" aria-live="polite" style="display: none;"></div>
+
+      <form id="login-form" class="login-form">
+        <div class="form-group">
+          <label class="form-label" for="login-email">E-mail</label>
+          <input class="form-input" type="email" id="login-email" placeholder="seu@email.com" required autocomplete="email" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="login-password">Senha</label>
+          <input class="form-input" type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password" />
+        </div>
+        <button type="submit" class="btn btn-primary btn-full" id="login-btn">
+          <i data-lucide="log-in" style="width:16px;height:16px;"></i>
+          Entrar
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Aplicação Principal (Visível quando autenticado) -->
+  <div id="app" style="display: none;">
     <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-logo">
@@ -33,25 +60,36 @@
       </div>
 
       <nav class="sidebar-nav">
-        <a class="nav-item active" data-page="dashboard" id="nav-dashboard" href="#" onclick="return false;">
+        <a class="nav-item active" data-page="dashboard" id="nav-dashboard" href="#">
           <i data-lucide="layout-dashboard" class="nav-icon"></i>
           Dashboard
         </a>
-        <a class="nav-item" data-page="transactions" id="nav-transactions" href="#" onclick="return false;">
+        <a class="nav-item" data-page="transactions" id="nav-transactions" href="#">
           <i data-lucide="arrow-left-right" class="nav-icon"></i>
           Transações
         </a>
-        <a class="nav-item" data-page="history" id="nav-history" href="#" onclick="return false;">
+        <a class="nav-item" data-page="history" id="nav-history" href="#">
           <i data-lucide="calendar-days" class="nav-icon"></i>
           Histórico
         </a>
-        <a class="nav-item" data-page="chat" id="nav-chat" href="#" onclick="return false;">
+        <a class="nav-item" data-page="chat" id="nav-chat" href="#">
           <i data-lucide="bot" class="nav-icon"></i>
-          Chat IA
+          Rock Advisor
         </a>
       </nav>
 
       <div class="sidebar-footer">
+        <!-- Indicador de Usuário e Logout -->
+        <div class="user-profile-bar" style="margin-bottom:12px;padding:8px 10px;background:var(--bg-glass);border-radius:var(--r-md);display:flex;align-items:center;justify-content:space-between;gap:6px;">
+          <div style="min-width:0;flex:1;">
+            <div id="user-email-display" style="font-size:11px;font-weight:600;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+            <span id="dev-bypass-badge" class="badge neutral" style="display:none;font-size:9px;padding:2px 6px;margin-top:2px;">Dev Bypass</span>
+          </div>
+          <button class="btn-icon" id="btn-logout" title="Sair / Logout" aria-label="Sair da conta" style="width:30px;height:30px;flex-shrink:0;">
+            <i data-lucide="log-out" style="width:14px;height:14px;"></i>
+          </button>
+        </div>
+
         <div class="month-selector">
           <i data-lucide="calendar" style="width:14px;height:14px;flex-shrink:0;"></i>
           <select id="global-month-select" aria-label="Selecionar mês"></select>
@@ -71,7 +109,7 @@
           <button class="btn-icon" id="theme-toggle" aria-label="Alternar Tema">
             <i data-lucide="moon"></i>
           </button>
-          <button class="btn btn-primary" id="btn-add-transaction" onclick="App.openAddModal()">
+          <button class="btn btn-primary" id="btn-add-transaction">
             <i data-lucide="plus" style="width:16px;height:16px;"></i>
             <span class="btn-text">Nova Transação</span>
           </button>
@@ -88,26 +126,26 @@
   <!-- Toast Container -->
   <div class="toast-container" id="toast-container"></div>
 
-  <!-- Transaction Modal -->
-  <div class="modal-overlay" id="transaction-modal" style="display:none;">
+  <!-- Transaction Modal Acessível -->
+  <div class="modal-overlay" id="transaction-modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div class="modal">
       <div class="modal-header">
         <h2 class="modal-title" id="modal-title">Nova Transação</h2>
-        <button class="btn-icon" onclick="App.closeModal()" aria-label="Fechar">
+        <button class="btn-icon" id="modal-close-btn" aria-label="Fechar">
           <i data-lucide="x" style="width:18px;height:18px;"></i>
         </button>
       </div>
 
-      <form id="transaction-form" class="form-grid" onsubmit="App.submitTransaction(event)">
+      <form id="transaction-form" class="form-grid">
         <!-- Type Toggle -->
         <div class="form-group">
           <label class="form-label">Tipo</label>
           <div class="type-toggle">
-            <button type="button" class="type-btn active expense" id="btn-type-expense" onclick="App.setType('expense')">
+            <button type="button" class="type-btn active expense" id="btn-type-expense">
               <i data-lucide="trending-down" style="width:14px;height:14px;"></i>
               Despesa
             </button>
-            <button type="button" class="type-btn income" id="btn-type-income" onclick="App.setType('income')">
+            <button type="button" class="type-btn income" id="btn-type-income">
               <i data-lucide="trending-up" style="width:14px;height:14px;"></i>
               Receita
             </button>
@@ -129,13 +167,13 @@
         <!-- Installments -->
         <div class="form-row" id="installments-row">
           <div class="form-group" style="flex-direction: row; align-items: center; gap: 8px; justify-content: flex-start; height: 100%; padding-top: 10px;">
-            <input type="checkbox" id="tx-is-installment" onchange="App.toggleInstallments()" style="width:18px;height:18px;cursor:pointer;" />
+            <input type="checkbox" id="tx-is-installment" style="width:18px;height:18px;cursor:pointer;" />
             <label class="form-label" for="tx-is-installment" style="margin-bottom:0; cursor:pointer;">Parcelada?</label>
           </div>
           <div class="form-group" id="installments-qty-group" style="visibility: hidden;">
             <label class="form-label" for="tx-installments">Opções de Parcelamento</label>
             <select class="form-input" id="tx-installments" style="cursor: pointer;">
-              <!-- Options will be populated by JS -->
+              <!-- Options populated by JS -->
             </select>
           </div>
         </div>
@@ -155,7 +193,7 @@
 
         <!-- Submit -->
         <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:8px;">
-          <button type="button" class="btn btn-secondary" onclick="App.closeModal()">Cancelar</button>
+          <button type="button" class="btn btn-secondary" id="btn-cancel-modal">Cancelar</button>
           <button type="submit" class="btn btn-primary" id="submit-btn">
             <i data-lucide="check" style="width:16px;height:16px;"></i>
             Salvar
@@ -166,6 +204,7 @@
   </div>
 
   <!-- Scripts -->
+  <script src="/static/auth.js"></script>
   <script src="/static/modules/dashboard.js"></script>
   <script src="/static/modules/transactions.js"></script>
   <script src="/static/modules/history.js"></script>

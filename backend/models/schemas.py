@@ -1,6 +1,17 @@
-from pydantic import BaseModel, Field
+import re
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List, Literal
 from datetime import datetime
+
+
+def validate_month_key_str(v: str) -> str:
+    """Valida se uma string month_key tem o formato YYYY-MM com mês entre 01 e 12."""
+    if not isinstance(v, str):
+        raise ValueError("month_key deve ser uma string.")
+    match = re.match(r"^(\d{4})-(0[1-9]|1[0-2])$", v)
+    if not match:
+        raise ValueError("month_key deve estar no formato YYYY-MM com mês válido de 01 a 12.")
+    return v
 
 
 # ─── Transaction ────────────────────────────────────────────────────────────
@@ -13,6 +24,14 @@ class TransactionCreate(BaseModel):
     date: str = Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$", description="YYYY-MM-DD")
     installments: Optional[int] = Field(None, ge=1, le=72, description="Número de parcelas (para cartão de crédito)")
 
+    @field_validator("date")
+    @classmethod
+    def validate_date(cls, v: str) -> str:
+        try:
+            datetime.strptime(v, "%Y-%m-%d")
+        except ValueError:
+            raise ValueError("Data deve ser uma data válida no formato YYYY-MM-DD.")
+        return v
 
 
 class TransactionUpdate(BaseModel):
@@ -21,6 +40,16 @@ class TransactionUpdate(BaseModel):
     category: Optional[str] = None
     description: Optional[str] = Field(None, min_length=1, max_length=200)
     date: Optional[str] = Field(None, pattern=r"^\d{4}-\d{2}-\d{2}$")
+
+    @field_validator("date")
+    @classmethod
+    def validate_date(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            try:
+                datetime.strptime(v, "%Y-%m-%d")
+            except ValueError:
+                raise ValueError("Data deve ser uma data válida no formato YYYY-MM-DD.")
+        return v
 
 
 class TransactionResponse(BaseModel):
@@ -32,6 +61,10 @@ class TransactionResponse(BaseModel):
     date: str
     month_key: str
     created_at: str
+    created_by_uid: Optional[str] = None
+    created_by_email: Optional[str] = None
+    updated_by_uid: Optional[str] = None
+    updated_by_email: Optional[str] = None
 
 
 # ─── Dashboard ──────────────────────────────────────────────────────────────
@@ -50,12 +83,22 @@ class DashboardSummary(BaseModel):
     balance: float
     transaction_count: int
 
+    @field_validator("month_key")
+    @classmethod
+    def validate_mk(cls, v: str) -> str:
+        return validate_month_key_str(v)
+
 
 class MonthlyEvolution(BaseModel):
     month_key: str
     income: float
     expenses: float
     balance: float
+
+    @field_validator("month_key")
+    @classmethod
+    def validate_mk(cls, v: str) -> str:
+        return validate_month_key_str(v)
 
 
 # ─── History ────────────────────────────────────────────────────────────────
@@ -67,6 +110,11 @@ class MonthDetail(BaseModel):
     balance: float
     transactions: List[TransactionResponse]
     by_category: List[CategorySummary]
+
+    @field_validator("month_key")
+    @classmethod
+    def validate_mk(cls, v: str) -> str:
+        return validate_month_key_str(v)
 
 
 class MonthComparison(BaseModel):
@@ -81,12 +129,18 @@ class MonthComparison(BaseModel):
 
 class ChatMessage(BaseModel):
     role: Literal["user", "assistant"]
-    content: str
+    content: str = Field(..., min_length=1, max_length=2000)
 
 
 class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=2000)
-    history: Optional[List[ChatMessage]] = []
+    month_key: str = Field(..., description="Mês selecionado (YYYY-MM)")
+    history: Optional[List[ChatMessage]] = Field(default_factory=list)
+
+    @field_validator("month_key")
+    @classmethod
+    def validate_mk(cls, v: str) -> str:
+        return validate_month_key_str(v)
 
 
 class ChatResponse(BaseModel):

@@ -8,8 +8,8 @@ const Auth = {
 
   async init() {
     try {
-      // 1. Busca configurações públicas do Firebase do backend
-      const res = await fetch('/api/config/firebase');
+      // 1. Busca configurações públicas do Firebase do backend (sem cache para refletir mudanças no .env imediatamente)
+      const res = await fetch('/api/config/firebase', { cache: 'no-store' });
       if (!res.ok) throw new Error(`Falha ao obter config: ${res.status}`);
       const config = await res.json();
 
@@ -26,7 +26,7 @@ const Auth = {
 
       // 2. Se não for dev bypass, inicializa Firebase Web SDK Modular via ES Modules
       if (!config.apiKey || !config.projectId) {
-        console.error("Configurações do Firebase não encontradas no servidor.");
+        console.error("Configurações do Firebase não encontradas no servidor.", config);
         this._showLoginError("Configurações do Firebase não encontradas. Verifique o arquivo .env");
         return;
       }

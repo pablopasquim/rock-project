@@ -1,5 +1,13 @@
+import sys
 import os
 from contextlib import asynccontextmanager
+
+# Adiciona a raiz do projeto ao sys.path para garantir que 'backend' seja resolvível
+# independentemente do diretório onde o uvicorn foi executado
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles

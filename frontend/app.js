@@ -432,6 +432,11 @@ document.addEventListener('DOMContentLoaded', () => {
   if (loginForm) {
     loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
+      if (window.Auth && window.Auth.isDevBypass) {
+        window.Auth._showMainApp();
+        return;
+      }
+
       const email = document.getElementById('login-email').value.trim();
       const password = document.getElementById('login-password').value;
       const btn = document.getElementById('login-btn');
@@ -443,12 +448,37 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         await window.Auth.login(email, password);
       } catch (err) {
+        console.error("Erro no login Firebase:", err);
+        let errorText = "Erro ao realizar login. Tente novamente.";
+        const code = err.code || "";
+        
+        if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') {
+          errorText = "E-mail ou senha incorretos. Verifique se a conta foi cadastrada no Firebase Console.";
+        } else if (code === 'auth/invalid-api-key') {
+          errorText = "FIREBASE_API_KEY inválida. Verifique o arquivo backend/.env";
+        } else if (code === 'auth/user-disabled') {
+          errorText = "Esta conta de usuário foi desativada.";
+        } else if (err.message) {
+          errorText = err.message;
+        }
+
         if (errEl) {
-          errEl.textContent = "E-mail ou senha inválidos. Tente novamente.";
+          errEl.textContent = errorText;
           errEl.style.display = 'block';
         }
       } finally {
         btn.disabled = false;
+      }
+    });
+  }
+
+  // Click direct no botão de login em Dev Bypass
+  const loginBtn = document.getElementById('login-btn');
+  if (loginBtn) {
+    loginBtn.addEventListener('click', (e) => {
+      if (window.Auth && window.Auth.isDevBypass) {
+        e.preventDefault();
+        window.Auth._showMainApp();
       }
     });
   }

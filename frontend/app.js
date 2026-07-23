@@ -31,6 +31,7 @@ const API = {
     }
     if (res.status === 403) {
       toast("Seu e-mail não está autorizado a acessar este sistema.", "error");
+      if (window.Auth) window.Auth.logout();
       throw new Error("Acesso não autorizado para este e-mail.");
     }
     if (!res.ok) {

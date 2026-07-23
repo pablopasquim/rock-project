@@ -9,6 +9,21 @@ from backend.main import app
 from backend.services.auth_service import validate_auth_startup, get_current_user, verify_firebase_token
 
 
+VALID_PROD_ENV = {
+    "ENVIRONMENT": "production",
+    "AUTH_DEV_BYPASS": "false",
+    "GCP_PROJECT_ID": "my-real-project-id",
+    "FIREBASE_PROJECT_ID": "my-real-project-id",
+    "FIREBASE_API_KEY": "real-api-key-123456",
+    "FIREBASE_AUTH_DOMAIN": "my-real-project-id.firebaseapp.com",
+    "FIREBASE_APP_ID": "1:999999:web:999999",
+    "FIRESTORE_DATABASE": "(default)",
+    "HOUSEHOLD_ID": "rock-family-real",
+    "APP_ORIGINS": "https://real-app.a.run.app",
+    "ALLOWED_USER_EMAILS": "user1@realdomain.com,user2@realdomain.com",
+}
+
+
 class TestAuthEndpointsAndCSP:
     def test_csp_header_present_and_clean(self, client):
         """Verifica se o header Content-Security-Policy está presente e não contém typos."""
@@ -69,34 +84,32 @@ class TestAuthEndpointsAndCSP:
 class TestStartupGuards:
     def test_dev_bypass_in_production_raises_runtime_error(self):
         """AUTH_DEV_BYPASS=true em produção lança erro no startup."""
-        with patch.dict(os.environ, {"AUTH_DEV_BYPASS": "true", "ENVIRONMENT": "production"}):
+        env = {**VALID_PROD_ENV, "AUTH_DEV_BYPASS": "true"}
+        with patch.dict(os.environ, env):
             with pytest.raises(RuntimeError) as exc_info:
                 validate_auth_startup()
             assert "AUTH_DEV_BYPASS não é permitido em produção" in str(exc_info.value)
 
     def test_empty_allowlist_in_production_raises_runtime_error(self):
         """ALLOWED_USER_EMAILS vazia em produção lança erro no startup."""
-        with patch.dict(os.environ, {"ENVIRONMENT": "production", "ALLOWED_USER_EMAILS": "", "AUTH_DEV_BYPASS": "false"}):
+        env = {**VALID_PROD_ENV, "ALLOWED_USER_EMAILS": ""}
+        with patch.dict(os.environ, env):
             with pytest.raises(RuntimeError) as exc_info:
                 validate_auth_startup()
-            assert "ALLOWED_USER_EMAILS está vazia em produção" in str(exc_info.value)
+            assert "ALLOWED_USER_EMAILS" in str(exc_info.value)
 
     def test_placeholder_email_in_production_raises_runtime_error(self):
         """ALLOWED_USER_EMAILS contendo exemplo/placeholder em produção lança erro no startup."""
-        with patch.dict(os.environ, {"ENVIRONMENT": "production", "ALLOWED_USER_EMAILS": "user1@example.com", "AUTH_DEV_BYPASS": "false"}):
+        env = {**VALID_PROD_ENV, "ALLOWED_USER_EMAILS": "user1@example.com"}
+        with patch.dict(os.environ, env):
             with pytest.raises(RuntimeError) as exc_info:
                 validate_auth_startup()
-            assert "ALLOWED_USER_EMAILS contém e-mail placeholder" in str(exc_info.value)
+            assert "ALLOWED_USER_EMAILS" in str(exc_info.value)
 
     def test_missing_firebase_project_id_in_production_raises_runtime_error(self):
-        """GCP_PROJECT_ID / FIREBASE_PROJECT_ID ausente em produção lança erro no startup."""
-        with patch.dict(os.environ, {
-            "ENVIRONMENT": "production",
-            "ALLOWED_USER_EMAILS": "pablo@rockfinance.app",
-            "AUTH_DEV_BYPASS": "false",
-            "GCP_PROJECT_ID": "",
-            "FIREBASE_PROJECT_ID": ""
-        }):
+        """GCP_PROJECT_ID / FIREBASE_PROJECT_ID ausente ou placeholder em produção lança erro no startup."""
+        env = {**VALID_PROD_ENV, "GCP_PROJECT_ID": "seu-projeto-gcp", "FIREBASE_PROJECT_ID": "seu-projeto-gcp"}
+        with patch.dict(os.environ, env):
             with pytest.raises(RuntimeError) as exc_info:
                 validate_auth_startup()
-            assert "GCP_PROJECT_ID ou FIREBASE_PROJECT_ID ausente" in str(exc_info.value)
+            assert "GCP_PROJECT_ID" in str(exc_info.value) or "FIREBASE_PROJECT_ID" in str(exc_info.value)

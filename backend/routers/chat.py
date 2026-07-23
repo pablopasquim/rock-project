@@ -69,22 +69,24 @@ def chat(
         financial_context = fs.get_financial_context(request.month_key)
 
         # Trata o histórico recebido do cliente como NÃO CONFIÁVEL:
-        # Para evitar Prompt Injection por mensagens 'assistant' forjadas,
-        # aceitamos apenas as mensagens do usuário (role 'user') do histórico recente.
+        # Descarta mensagens 'assistant' enviadas pelo navegador para evitar Prompt Injection.
         raw_history = request.history or []
-        user_history_only = [
+        user_history_clean = [
             msg for msg in raw_history
             if msg.role == "user" and msg.content.strip()
-        ][-5:]  # Máximo 5 perguntas passadas do usuário
+        ][-4:]
 
         response_text = gemini.chat_with_context(
             user_message=request.message,
-            history=user_history_only,
+            history=user_history_clean,
             financial_context=financial_context,
         )
 
-        # Monta o histórico limpo limitado às últimas 10 mensagens no total
-        updated_history = list(raw_history)
+        # Recontrói o histórico confiável sem mensagens assistant fabricadas pelo navegador
+        updated_history: List[ChatMessage] = []
+        for m in user_history_clean:
+            updated_history.append(ChatMessage(role="user", content=m.content))
+
         updated_history.append(ChatMessage(role="user", content=request.message))
         updated_history.append(ChatMessage(role="assistant", content=response_text))
         updated_history = updated_history[-10:]

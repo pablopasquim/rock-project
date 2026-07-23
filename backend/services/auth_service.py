@@ -19,10 +19,21 @@ PLACEHOLDER_EMAILS = [
 ]
 
 
+def _is_placeholder(value: str) -> bool:
+    if not value:
+        return True
+    val = value.strip().lower()
+    placeholders = [
+        "seu-projeto", "seu-dominio", "placeholder", "aizasy...",
+        "1:1234567890:web:abcdef", "domínio-do-cloud-run", "example.com"
+    ]
+    return any(p in val for p in placeholders)
+
+
 def validate_auth_startup() -> None:
     """
     Validações estritas de segurança na inicialização da aplicação (Startup Guard).
-    Garante que configurações de produção sejam válidas e que dev bypass não esteja ativo.
+    Garante que TODAS as configurações obrigatórias em produção estejam presentes e não sejam placeholders.
     """
     dev_bypass = os.getenv("AUTH_DEV_BYPASS", "false").lower() in ("true", "1", "yes")
     environment = os.getenv("ENVIRONMENT", "development").lower()
@@ -40,9 +51,20 @@ def validate_auth_startup() -> None:
             if email in PLACEHOLDER_EMAILS or domain in PLACEHOLDER_DOMAINS:
                 raise RuntimeError(f"CRITICAL SECURITY ERROR: ALLOWED_USER_EMAILS contém e-mail placeholder: {email}")
 
-        project_id = os.getenv("GCP_PROJECT_ID") or os.getenv("FIREBASE_PROJECT_ID")
-        if not project_id or project_id.startswith("seu-projeto"):
-            raise RuntimeError("CRITICAL SECURITY ERROR: GCP_PROJECT_ID ou FIREBASE_PROJECT_ID ausente ou inválido em produção.")
+        required_vars = [
+            ("GCP_PROJECT_ID", os.getenv("GCP_PROJECT_ID")),
+            ("FIREBASE_PROJECT_ID", os.getenv("FIREBASE_PROJECT_ID")),
+            ("FIREBASE_API_KEY", os.getenv("FIREBASE_API_KEY")),
+            ("FIREBASE_AUTH_DOMAIN", os.getenv("FIREBASE_AUTH_DOMAIN")),
+            ("FIREBASE_APP_ID", os.getenv("FIREBASE_APP_ID")),
+            ("FIRESTORE_DATABASE", os.getenv("FIRESTORE_DATABASE")),
+            ("HOUSEHOLD_ID", os.getenv("HOUSEHOLD_ID")),
+            ("APP_ORIGINS", os.getenv("APP_ORIGINS")),
+        ]
+
+        for name, val in required_vars:
+            if not val or _is_placeholder(val):
+                raise RuntimeError(f"CRITICAL SECURITY ERROR: Configuração de produção '{name}' está ausente ou contém valor placeholder inválido.")
 
 
 def validate_dev_bypass_startup() -> None:

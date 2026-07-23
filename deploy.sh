@@ -52,13 +52,23 @@ gcloud services enable \
   secretmanager.googleapis.com \
   --quiet
 
-# 3. Verificar existência do repositório no Artifact Registry
+# 3. Validar URL atual do Cloud Run antes do deploy (se o serviço já existir)
+EXISTING_URL=$(gcloud run services describe "$SERVICE_NAME" --region="$REGION" --format="value(status.url)" 2>/dev/null || echo "")
+
+if [[ -n "$EXISTING_URL" ]]; then
+  info "Serviço já existente encontrado no Cloud Run: $EXISTING_URL"
+  if [[ "$APP_ORIGINS" != *"$EXISTING_URL"* ]]; then
+    error "A URL atual do Cloud Run ($EXISTING_URL) não está presente em APP_ORIGINS ($APP_ORIGINS)! Abortando deploy com origem divergente."
+  fi
+fi
+
+# 4. Verificar existência do repositório no Artifact Registry
 info "Verificando se o repositório '$ARTIFACT_REPO' existe no Artifact Registry ($REGION)..."
 if ! gcloud artifacts repositories describe "$ARTIFACT_REPO" --location="$REGION" &>/dev/null; then
   error "Repositório '$ARTIFACT_REPO' não existe no Artifact Registry na região '$REGION'. Crie o repositório primeiro."
 fi
 
-# 4. Gerar arquivo temporário de env-vars usando mktemp e chmod 600 seguro
+# 5. Gerar arquivo temporário de env-vars usando mktemp e chmod 600 seguro
 ENV_YAML_TMP=$(mktemp /tmp/agent_finance_env_XXXXXX.yaml 2>/dev/null || mktemp tmp_agent_finance_env_XXXXXX.yaml)
 chmod 600 "$ENV_YAML_TMP"
 trap 'rm -f "$ENV_YAML_TMP"' EXIT
@@ -77,13 +87,13 @@ FIREBASE_APP_ID: "${FIREBASE_APP_ID}"
 AUTH_DEV_BYPASS: "false"
 EOF
 
-# 5. Build via Google Cloud Build
+# 6. Build via Google Cloud Build
 IMAGE_URI="${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REPO}/${IMAGE_NAME}:latest"
 info "Construindo imagem de produção via Cloud Build: $IMAGE_URI"
 gcloud builds submit --tag "$IMAGE_URI" .
 success "Imagem construída com sucesso!"
 
-# 6. Deploy no Cloud Run (max-instances=1, secrets via Secret Manager)
+# 7. Deploy no Cloud Run (max-instances=1, secrets via Secret Manager)
 info "Fazendo deploy no Cloud Run..."
 gcloud run deploy "$SERVICE_NAME" \
   --image="$IMAGE_URI" \
@@ -99,11 +109,15 @@ gcloud run deploy "$SERVICE_NAME" \
   --set-secrets="GEMINI_API_KEY=gemini-api-key:latest" \
   --quiet
 
-# 7. Obter e validar a URL real do Cloud Run
+# 8. Obter e validar a URL pós-deploy do Cloud Run
 SERVICE_URL=$(gcloud run services describe "$SERVICE_NAME" --region="$REGION" --format="value(status.url)" 2>/dev/null || echo "")
 
 if [[ -z "$SERVICE_URL" ]]; then
   error "Não foi possível obter a URL do Cloud Run para o serviço '$SERVICE_NAME'."
+fi
+
+if [[ "$APP_ORIGINS" != *"$SERVICE_URL"* ]]; then
+  error "A URL pós-deploy do Cloud Run ($SERVICE_URL) não está presente em APP_ORIGINS ($APP_ORIGINS)! Origem divergente detectada."
 fi
 
 success "Deploy de produção concluído com sucesso!"

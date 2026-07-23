@@ -1,10 +1,9 @@
-// ─── Chat Module ─────────────────────────────────────────────────────────────
+// ─── Chat Module (Rock Advisor) ─────────────────────────────────────────────
 const Chat = {
   _history: [],
   _isLoading: false,
 
   async render(container) {
-    // Load suggestions and summary in parallel
     let suggestions = [];
     let summary = null;
 
@@ -13,7 +12,7 @@ const Chat = {
         API.get('/api/chat/suggestions'),
         API.get(`/api/dashboard/summary?month=${State.currentMonth}`).catch(() => null),
       ]);
-      suggestions = sugData.suggestions;
+      suggestions = sugData.suggestions || [];
       summary = sumData;
     } catch (e) {
       suggestions = [
@@ -23,7 +22,6 @@ const Chat = {
       ];
     }
 
-    // Build context-aware suggestions from real data
     const smartSuggestions = this._buildSmartSuggestions(suggestions, summary);
 
     container.innerHTML = `
@@ -38,9 +36,9 @@ const Chat = {
         <!-- Suggestions (only on empty state) -->
         ${this._history.length === 0 ? `
         <div class="chat-suggestions" id="chat-suggestions">
-          ${smartSuggestions.map(s => `
-            <button class="suggestion-chip" onclick="Chat.sendSuggestion('${s.replace(/'/g, "\\'")}')">
-              ${s}
+          ${smartSuggestions.map((s, idx) => `
+            <button class="suggestion-chip" data-sug-idx="${idx}">
+              ${escapeHTML(s)}
             </button>
           `).join('')}
         </div>` : ''}
@@ -51,25 +49,50 @@ const Chat = {
             type="text"
             class="chat-input"
             id="chat-input"
-            placeholder="Pergunte sobre suas finanças..."
+            placeholder="Pergunte ao Rock Advisor..."
             maxlength="500"
             autocomplete="off"
-            onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();Chat.sendMessage();}"
           />
-          <button class="btn btn-primary" id="chat-send-btn" onclick="Chat.sendMessage()" style="padding:10px 18px;" aria-label="Enviar">
+          <button class="btn btn-primary" id="chat-send-btn" style="padding:10px 18px;" aria-label="Enviar mensagem">
             <i data-lucide="send" style="width:16px;height:16px;"></i>
           </button>
         </div>
       </div>
     `;
-    lucide.createIcons();
+
+    // Event listeners
+    const input = document.getElementById('chat-input');
+    const sendBtn = document.getElementById('chat-send-btn');
+    const sugContainer = document.getElementById('chat-suggestions');
+
+    if (input) {
+      input.onkeydown = (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          this.sendMessage();
+        }
+      };
+    }
+
+    if (sendBtn) {
+      sendBtn.onclick = () => this.sendMessage();
+    }
+
+    if (sugContainer) {
+      sugContainer.querySelectorAll('.suggestion-chip').forEach((chip, idx) => {
+        chip.onclick = () => {
+          const text = smartSuggestions[idx];
+          if (text) this.sendSuggestion(text);
+        };
+      });
+    }
+
+    if (window.lucide) lucide.createIcons();
     this._scrollToBottom();
   },
 
-  // Build 3 data-driven suggestions (Marc Lou P14: steal copy from customers' reality)
   _buildSmartSuggestions(fallback, summary) {
     if (!summary) return fallback.slice(0, 3);
-
     const month = formatMonthLabel(State.currentMonth);
     const suggestions = [];
 
@@ -87,12 +110,10 @@ const Chat = {
   },
 
   _welcomeMessage(summary) {
-    // Pre-conversation data insights (RCD: show value before user has to ask)
     const insights = this._buildInsights(summary);
 
     return `
       <div class="chat-welcome">
-        <!-- Rock Finance identity — mountain SVG icon -->
         <div class="chat-avatar">
           <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
             <path d="M18 4L6 28H30L18 4Z" fill="white" opacity="0.9"/>
@@ -103,7 +124,7 @@ const Chat = {
         <div>
           <div class="chat-welcome-title">Rock Advisor</div>
           <div class="chat-welcome-sub">
-            Seu guia financeiro pessoal. Tenho acesso aos seus dados e posso ajudar você a entender para onde vai o seu dinheiro.
+            Seu guia financeiro pessoal. Tenho acesso aos seus dados e posso ajudar você a entender suas finanças.
           </div>
         </div>
         ${insights.length ? `
@@ -129,9 +150,9 @@ const Chat = {
       items.push(`Você gastou <strong>${ratio}%</strong> da sua receita em ${month}.`);
     }
     if (summary.balance < 0) {
-      items.push(`Seu saldo está <strong style="color:var(--expense)">negativo em ${formatCurrency(Math.abs(summary.balance))}</strong>. Pergunte-me como melhorar.`);
+      items.push(`Seu saldo está <strong style="color:var(--expense)">negativo em ${formatCurrency(Math.abs(summary.balance))}</strong>.`);
     } else if (summary.balance > 0) {
-      items.push(`Você tem <strong style="color:var(--income)">${formatCurrency(summary.balance)}</strong> de saldo positivo em ${month}.`);
+      items.push(`Você tem <strong style="color:var(--income)">${formatCurrency(summary.balance)}</strong> de saldo em ${month}.`);
     }
 
     return items.slice(0, 2);
@@ -139,7 +160,7 @@ const Chat = {
 
   _renderBubble(msg) {
     const isUser = msg.role === 'user';
-    const content = isUser ? msg.content : this._parseMarkdown(msg.content);
+    const content = isUser ? escapeHTML(msg.content) : this._parseMarkdown(msg.content);
     return `
       <div style="display:flex;flex-direction:column;${isUser ? 'align-items:flex-end;' : 'align-items:flex-start;'}">
         <div class="chat-bubble ${msg.role} ${isUser ? '' : 'md'}">${content}</div>
@@ -148,14 +169,23 @@ const Chat = {
   },
 
   _parseMarkdown(text) {
-    if (window.marked) return marked.parse(text);
-    return text
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/\n/g, '<br>');
+    let rawHtml = '';
+    if (window.marked) {
+      rawHtml = marked.parse(text);
+    } else {
+      rawHtml = escapeHTML(text)
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/\n/g, '<br>');
+    }
+
+    // Sanitiza HTML com DOMPurify para prevenir XSS
+    if (window.DOMPurify) {
+      return window.DOMPurify.sanitize(rawHtml);
+    }
+    return rawHtml;
   },
 
-  // 3 dots pulsing opacity (Emil: no infinite spinning, discrete processing)
   _typingIndicator() {
     return `
       <div id="typing-indicator" style="display:flex;align-items:flex-start;">
@@ -199,13 +229,12 @@ const Chat = {
     const messagesEl = document.getElementById('chat-messages');
     if (!messagesEl) return;
 
-    // Remove welcome state
     const welcomeEl = messagesEl.querySelector('.chat-welcome');
     if (welcomeEl) welcomeEl.remove();
 
     messagesEl.insertAdjacentHTML('beforeend', `
       <div style="display:flex;flex-direction:column;align-items:flex-end;">
-        <div class="chat-bubble user">${message}</div>
+        <div class="chat-bubble user">${escapeHTML(message)}</div>
       </div>
     `);
     messagesEl.insertAdjacentHTML('beforeend', this._typingIndicator());
@@ -214,6 +243,7 @@ const Chat = {
     try {
       const res = await API.post('/api/chat', {
         message,
+        month_key: State.currentMonth,
         history: this._history,
       });
 
@@ -227,10 +257,15 @@ const Chat = {
       `);
     } catch (err) {
       document.getElementById('typing-indicator')?.remove();
+      const isRateLimit = err.message && err.message.includes('429');
+      const errText = isRateLimit
+        ? "Você enviou muitas mensagens. Aguarde um minuto antes de tentar novamente."
+        : "Não foi possível conectar com o Rock Advisor. Tente novamente.";
+
       messagesEl.insertAdjacentHTML('beforeend', `
         <div style="display:flex;flex-direction:column;align-items:flex-start;">
           <div class="chat-bubble assistant" style="color:var(--expense);">
-            Erro ao conectar com o Rock Advisor. Tente novamente.
+            ⚠️ ${escapeHTML(errText)}
           </div>
         </div>
       `);
@@ -242,3 +277,5 @@ const Chat = {
     }
   },
 };
+
+window.Chat = Chat;

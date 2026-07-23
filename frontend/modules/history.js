@@ -14,7 +14,7 @@ const History = {
 
     try {
       const data = await API.get('/api/history/months');
-      this._availableMonths = data.months;
+      this._availableMonths = data.months || [];
     } catch (e) {
       this._availableMonths = [];
     }
@@ -22,15 +22,15 @@ const History = {
     container.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
         <div class="month-nav">
-          <button class="btn btn-secondary" id="btn-prev-month" onclick="History.prevMonth()" style="padding:8px 12px;" aria-label="Mês anterior">
+          <button class="btn btn-secondary" id="btn-prev-month" style="padding:8px 12px;" aria-label="Mês anterior">
             <i data-lucide="chevron-left" style="width:16px;height:16px;"></i>
           </button>
-          <span class="month-display" id="history-month-display">${formatMonthLabel(this._currentMonth)}</span>
-          <button class="btn btn-secondary" id="btn-next-month" onclick="History.nextMonth()" style="padding:8px 12px;" aria-label="Próximo mês">
+          <span class="month-display" id="history-month-display">${escapeHTML(formatMonthLabel(this._currentMonth))}</span>
+          <button class="btn btn-secondary" id="btn-next-month" style="padding:8px 12px;" aria-label="Próximo mês">
             <i data-lucide="chevron-right" style="width:16px;height:16px;"></i>
           </button>
         </div>
-        <button class="btn btn-secondary" onclick="History.exportCSV()" style="font-size:13px;">
+        <button class="btn btn-secondary" id="btn-export-csv" style="font-size:13px;">
           <i data-lucide="download" style="width:14px;height:14px;"></i>
           Exportar CSV
         </button>
@@ -40,7 +40,11 @@ const History = {
       </div>
     `;
 
-    lucide.createIcons();
+    document.getElementById('btn-prev-month')?.addEventListener('click', () => this.prevMonth());
+    document.getElementById('btn-next-month')?.addEventListener('click', () => this.nextMonth());
+    document.getElementById('btn-export-csv')?.addEventListener('click', () => this.exportCSV());
+
+    if (window.lucide) lucide.createIcons();
     await this._loadMonth(this._currentMonth);
   },
 
@@ -50,12 +54,12 @@ const History = {
     content.innerHTML = `<div class="loader"><div class="spinner"></div></div>`;
 
     const [y, m] = monthKey.split('-');
-    let prevYear = parseInt(y), prevMonth = parseInt(m) - 1;
+    let prevYear = parseInt(y, 10), prevMonth = parseInt(m, 10) - 1;
     if (prevMonth === 0) { prevMonth = 12; prevYear--; }
     const prevKey = `${prevYear}-${String(prevMonth).padStart(2,'0')}`;
 
     const [detail, prevDetail] = await Promise.all([
-      API.get(`/api/history/${y}/${parseInt(m)}`).catch(() => null),
+      API.get(`/api/history/${y}/${parseInt(m, 10)}`).catch(() => null),
       API.get(`/api/history/${prevYear}/${prevMonth}`).catch(() => null),
     ]);
 
@@ -65,14 +69,13 @@ const History = {
           <div class="empty-state-icon">
             <i data-lucide="calendar-x" style="width:28px;height:28px;"></i>
           </div>
-          <h3>Sem dados em ${formatMonthLabel(monthKey)}</h3>
-          <p>Nenhuma transação registrada neste mês. Adicione uma clicando em "Nova Transação".</p>
+          <h3>Sem dados em ${escapeHTML(formatMonthLabel(monthKey))}</h3>
+          <p>Nenhuma transação registrada neste mês.</p>
         </div>`;
-      lucide.createIcons();
+      if (window.lucide) lucide.createIcons();
       return;
     }
 
-    // ── Interpretive insight message ─────────────────────────────────────────
     let insightHtml = '';
     if (prevDetail) {
       const expenseDiff = detail.total_expenses - prevDetail.total_expenses;
@@ -83,23 +86,22 @@ const History = {
         const color = expenseDiff > 0 ? 'var(--expense)' : 'var(--income)';
         const topCat = detail.by_category?.[0];
         const topCatMsg = topCat
-          ? ` <strong>${topCat.category}</strong> foi sua maior categoria (${topCat.percentage}%).`
+          ? ` <strong>${escapeHTML(topCat.category)}</strong> foi sua maior categoria (${topCat.percentage}%).`
           : '';
 
         insightHtml = `
           <div class="history-insight">
             Seus gastos <strong style="color:${color}">${direction} ${formatCurrency(Math.abs(expenseDiff))}</strong>
-            em relação a ${prevLabel}.${topCatMsg}
+            em relação a ${escapeHTML(prevLabel)}.${topCatMsg}
           </div>`;
       } else {
         insightHtml = `
           <div class="history-insight">
-            Seus gastos ficaram <strong>estáveis</strong> em relação a ${prevLabel}.
+            Seus gastos ficaram <strong>estáveis</strong> em relação a ${escapeHTML(prevLabel)}.
           </div>`;
       }
     }
 
-    // ── Summary row (3 inline cards) ────────────────────────────────────────
     const summaryHtml = `
       <div class="summary-grid" style="margin-bottom:20px;">
         <div class="summary-card income">
@@ -130,7 +132,6 @@ const History = {
         </div>
       </div>`;
 
-    // ── Category bars (scaleX, not width — Emil rule) ──────────────────────
     const catsHtml = detail.by_category.length ? `
       <div class="card" style="margin-bottom:16px;">
         <div class="card-title">Gastos por Categoria</div>
@@ -140,7 +141,7 @@ const History = {
               <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;">
                 <span style="display:flex;align-items:center;gap:7px;color:var(--text-secondary);font-weight:500;">
                   <i data-lucide="${this._catIcon[cat.category] || 'package'}" style="width:14px;height:14px;"></i>
-                  ${cat.category}
+                  ${escapeHTML(cat.category)}
                 </span>
                 <span style="color:var(--expense);font-weight:600;">
                   ${formatCurrency(cat.total)}
@@ -155,7 +156,6 @@ const History = {
         </div>
       </div>` : '';
 
-    // ── Transactions list ────────────────────────────────────────────────────
     const totalExpenses = detail.transactions
       .filter(t => t.type === 'expense')
       .reduce((s, t) => s + t.amount, 0);
@@ -163,7 +163,7 @@ const History = {
     const txHtml = `
       <div class="card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-          <div class="card-title" style="margin-bottom:0;">Transações de ${formatMonthLabel(monthKey)}</div>
+          <div class="card-title" style="margin-bottom:0;">Transações de ${escapeHTML(formatMonthLabel(monthKey))}</div>
           <span class="transactions-meta">${detail.transactions.length} itens · ${formatCurrency(totalExpenses)} em despesas</span>
         </div>
         ${detail.transactions.length ? `
@@ -174,15 +174,14 @@ const History = {
                 <i data-lucide="${this._catIcon[tx.category] || 'package'}" style="width:18px;height:18px;"></i>
               </div>
               <div class="tx-info">
-                <div class="tx-desc">${tx.description}</div>
-                <div class="tx-meta">${formatDate(tx.date)} · ${tx.category}</div>
+                <div class="tx-desc">${escapeHTML(tx.description)}</div>
+                <div class="tx-meta">${formatDate(tx.date)} · ${escapeHTML(tx.category)}</div>
               </div>
               <div class="tx-amount ${tx.type}">
                 ${tx.type === 'expense' ? '-' : '+'}${formatCurrency(tx.amount)}
               </div>
               <div class="tx-actions">
-                <button class="btn-icon btn-danger" title="Excluir"
-                  onclick="App.deleteTransaction('${tx.id}').then(()=>History._loadMonth('${monthKey}'))">
+                <button class="btn-icon btn-danger btn-delete-hist-tx" data-tx-id="${tx.id}" title="Excluir">
                   <i data-lucide="trash-2" style="width:13px;height:13px;"></i>
                 </button>
               </div>
@@ -197,9 +196,15 @@ const History = {
       </div>`;
 
     content.innerHTML = insightHtml + summaryHtml + catsHtml + txHtml;
-    lucide.createIcons();
 
-    // Trigger scaleX bars after paint (Emil: transform:scaleX, not width)
+    content.querySelectorAll('.btn-delete-hist-tx').forEach(btn => {
+      btn.onclick = () => {
+        App.deleteTransaction(btn.dataset.txId).then(() => this._loadMonth(monthKey));
+      };
+    });
+
+    if (window.lucide) lucide.createIcons();
+
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         content.querySelectorAll('.history-bar-fill').forEach(el => {
@@ -219,29 +224,51 @@ const History = {
 
   prevMonth() {
     const [y, m] = this._currentMonth.split('-');
-    let nm = parseInt(m) - 1, ny = parseInt(y);
+    let nm = parseInt(m, 10) - 1, ny = parseInt(y, 10);
     if (nm === 0) { nm = 12; ny--; }
     this._currentMonth = `${ny}-${String(nm).padStart(2,'0')}`;
     State.currentMonth = this._currentMonth;
     const gs = document.getElementById('global-month-select');
     if (gs) gs.value = this._currentMonth;
-    document.getElementById('history-month-display').textContent = formatMonthLabel(this._currentMonth);
+    const display = document.getElementById('history-month-display');
+    if (display) display.textContent = formatMonthLabel(this._currentMonth);
     this._loadMonth(this._currentMonth);
   },
 
   nextMonth() {
     const [y, m] = this._currentMonth.split('-');
-    let nm = parseInt(m) + 1, ny = parseInt(y);
+    let nm = parseInt(m, 10) + 1, ny = parseInt(y, 10);
     if (nm === 13) { nm = 1; ny++; }
     this._currentMonth = `${ny}-${String(nm).padStart(2,'0')}`;
     State.currentMonth = this._currentMonth;
     const gs = document.getElementById('global-month-select');
     if (gs) gs.value = this._currentMonth;
-    document.getElementById('history-month-display').textContent = formatMonthLabel(this._currentMonth);
+    const display = document.getElementById('history-month-display');
+    if (display) display.textContent = formatMonthLabel(this._currentMonth);
     this._loadMonth(this._currentMonth);
   },
 
-  exportCSV() {
-    window.open(`/api/history/export?month=${this._currentMonth}`, '_blank');
+  async exportCSV() {
+    if (window.Auth && typeof window.Auth.getToken === 'function') {
+      const token = await window.Auth.getToken();
+      fetch(`/api/history/export?month=${this._currentMonth}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      .then(res => res.blob())
+      .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `transacoes_${this._currentMonth}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      })
+      .catch(err => console.error("Erro ao exportar CSV:", err));
+    } else {
+      window.open(`/api/history/export?month=${this._currentMonth}`, '_blank');
+    }
   },
 };
+
+window.History = History;

@@ -6,19 +6,25 @@ const Transactions = {
     salario: 'briefcase', freelance: 'laptop', outros: 'package',
   },
   _allTransactions: [],
+  _activeType: '',
+  _activeCat: '',
 
   async render(container, monthKey) {
+    // Reset dos filtros ao carregar para evitar estado antigo mantido
+    this._activeType = '';
+    this._activeCat = '';
+
     container.innerHTML = `
       <div class="card">
         <!-- Compact header: count + total -->
         <div class="transactions-header">
           <div>
             <div style="font-size:15px;font-weight:700;color:var(--text-primary);margin-bottom:2px;">
-              Transações — ${formatMonthLabel(monthKey)}
+              Transações — ${escapeHTML(formatMonthLabel(monthKey))}
             </div>
             <div class="transactions-meta" id="tx-meta-summary">Carregando...</div>
           </div>
-          <button class="btn btn-primary" onclick="App.openAddModal()" style="font-size:13px;padding:9px 16px;">
+          <button class="btn btn-primary" id="btn-tx-new" style="font-size:13px;padding:9px 16px;">
             <i data-lucide="plus" style="width:15px;height:15px;"></i>
             Nova Transação
           </button>
@@ -26,9 +32,9 @@ const Transactions = {
 
         <!-- Filter chips (type) -->
         <div class="filter-chips" id="filter-chips" style="margin-bottom:14px;">
-          <button class="filter-chip active" data-type="" onclick="Transactions._setTypeFilter('', this)">Tudo</button>
-          <button class="filter-chip" data-type="expense" onclick="Transactions._setTypeFilter('expense', this)">Despesas</button>
-          <button class="filter-chip" data-type="income" onclick="Transactions._setTypeFilter('income', this)">Receitas</button>
+          <button class="filter-chip active" data-type="">Tudo</button>
+          <button class="filter-chip" data-type="expense">Despesas</button>
+          <button class="filter-chip" data-type="income">Receitas</button>
         </div>
 
         <!-- Category chips (populated after load) -->
@@ -38,8 +44,16 @@ const Transactions = {
       </div>
     `;
 
+    document.getElementById('btn-tx-new')?.addEventListener('click', () => App.openAddModal());
+
+    document.querySelectorAll('#filter-chips .filter-chip').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this._setTypeFilter(btn.dataset.type, btn);
+      });
+    });
+
     await this._load(monthKey);
-    lucide.createIcons();
+    if (window.lucide) lucide.createIcons();
   },
 
   async _load(monthKey) {
@@ -55,14 +69,17 @@ const Transactions = {
     if (!container || !cats.length) return;
 
     container.innerHTML = cats.map(c => `
-      <button class="filter-chip" data-cat="${c}" onclick="Transactions._setCatFilter('${c}', this)">
-        ${c.charAt(0).toUpperCase() + c.slice(1)}
+      <button class="filter-chip" data-cat="${escapeHTML(c)}">
+        ${escapeHTML(c.charAt(0).toUpperCase() + c.slice(1))}
       </button>
     `).join('');
-  },
 
-  _activeType: '',
-  _activeCat: '',
+    container.querySelectorAll('.filter-chip').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this._setCatFilter(btn.dataset.cat, btn);
+      });
+    });
+  },
 
   _setTypeFilter(type, btn) {
     this._activeType = type;
@@ -94,7 +111,6 @@ const Transactions = {
     const container = document.getElementById('tx-list');
     if (!container) return;
 
-    // Update meta summary
     const totalExpenses = transactions.filter(t => t.type === 'expense').reduce((s,t) => s + t.amount, 0);
     const metaEl = document.getElementById('tx-meta-summary');
     if (metaEl) {
@@ -111,15 +127,15 @@ const Transactions = {
           </div>
           <h3>Nenhuma transação encontrada</h3>
           <p>Tente outro filtro ou adicione uma nova transação.</p>
-          <button class="btn btn-primary" style="margin-top:12px;" onclick="App.openAddModal()">
+          <button class="btn btn-primary" id="btn-tx-empty-new" style="margin-top:12px;">
             <i data-lucide="plus" style="width:15px;height:15px;"></i> Nova Transação
           </button>
         </div>`;
-      lucide.createIcons();
+      document.getElementById('btn-tx-empty-new')?.addEventListener('click', () => App.openAddModal());
+      if (window.lucide) lucide.createIcons();
       return;
     }
 
-    // Group by date
     const grouped = {};
     transactions.forEach(tx => {
       if (!grouped[tx.date]) grouped[tx.date] = [];
@@ -140,20 +156,20 @@ const Transactions = {
                   <i data-lucide="${this._catIcon[tx.category] || 'package'}" style="width:18px;height:18px;"></i>
                 </div>
                 <div class="tx-info">
-                  <div class="tx-desc">${tx.description}</div>
+                  <div class="tx-desc">${escapeHTML(tx.description)}</div>
                   <div class="tx-meta">
                     <span class="badge ${tx.type}">${tx.type === 'expense' ? 'Despesa' : 'Receita'}</span>
-                    · ${tx.category}
+                    · ${escapeHTML(tx.category)}
                   </div>
                 </div>
                 <div class="tx-amount ${tx.type}">
                   ${tx.type === 'expense' ? '-' : '+'}${formatCurrency(tx.amount)}
                 </div>
                 <div class="tx-actions">
-                  <button class="btn-icon" title="Editar" onclick='App.openEditModal(${JSON.stringify(tx)})'>
+                  <button class="btn-icon btn-edit-tx" data-tx='${JSON.stringify(tx).replace(/'/g, "&#39;")}' title="Editar">
                     <i data-lucide="pencil" style="width:13px;height:13px;"></i>
                   </button>
-                  <button class="btn-icon btn-danger" title="Excluir" onclick="App.deleteTransaction('${tx.id}')">
+                  <button class="btn-icon btn-delete-tx" data-tx-id="${tx.id}" title="Excluir">
                     <i data-lucide="trash-2" style="width:13px;height:13px;"></i>
                   </button>
                 </div>
@@ -163,10 +179,24 @@ const Transactions = {
         </div>
       `).join('');
 
-    lucide.createIcons();
+    container.querySelectorAll('.btn-edit-tx').forEach(btn => {
+      btn.onclick = () => {
+        try {
+          const txData = JSON.parse(btn.dataset.tx);
+          App.openEditModal(txData);
+        } catch (e) {
+          console.error(e);
+        }
+      };
+    });
+
+    container.querySelectorAll('.btn-delete-tx').forEach(btn => {
+      btn.onclick = () => App.deleteTransaction(btn.dataset.txId);
+    });
+
+    if (window.lucide) lucide.createIcons();
   },
 
-  // Called by App after a new transaction is added — entrance animation
   animateNewItem(id) {
     const el = document.getElementById(`tx-${id}`);
     if (el) {
@@ -174,3 +204,5 @@ const Transactions = {
     }
   },
 };
+
+window.Transactions = Transactions;

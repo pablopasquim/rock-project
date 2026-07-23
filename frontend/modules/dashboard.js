@@ -2,7 +2,6 @@
 const Dashboard = {
   charts: {},
 
-  // Lucide icon names per category (consistent, no emojis)
   _catIcon: {
     alimentacao: 'utensils', transporte: 'car', moradia: 'home',
     lazer: 'gamepad-2', saude: 'heart-pulse', educacao: 'book-open',
@@ -31,18 +30,17 @@ const Dashboard = {
       <div class="card">
         <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
           <span>Transações Recentes</span>
-          <button class="btn btn-secondary" style="font-size:12px;padding:6px 14px;"
-            onclick="navigate('transactions')">Ver todas →</button>
+          <button class="btn btn-secondary" id="btn-dash-view-all" style="font-size:12px;padding:6px 14px;">Ver todas →</button>
         </div>
         <div id="recent-transactions"><div class="loader"><div class="spinner"></div></div></div>
       </div>
     `;
 
-    // Destroy old charts
+    document.getElementById('btn-dash-view-all')?.addEventListener('click', () => navigate('transactions'));
+
     Object.values(this.charts).forEach(c => c.destroy());
     this.charts = {};
 
-    // Parallel fetch
     const [summary, byCategory, evolution, transactions] = await Promise.all([
       API.get(`/api/dashboard/summary?month=${monthKey}`),
       API.get(`/api/dashboard/by-category?month=${monthKey}`),
@@ -55,7 +53,7 @@ const Dashboard = {
     this._renderLineChart(evolution);
     this._renderRecentTransactions(transactions);
 
-    lucide.createIcons();
+    if (window.lucide) lucide.createIcons();
   },
 
   _skeletonCards() {
@@ -86,7 +84,7 @@ const Dashboard = {
       <div class="card-primary">
         <div class="balance-hero-label">
           <i data-lucide="wallet" style="width:14px;height:14px;"></i>
-          Saldo de ${formatMonthLabel(summary.month_key)}
+          Saldo de ${escapeHTML(formatMonthLabel(summary.month_key))}
         </div>
         <div class="balance-hero-value" style="color:${balanceColor};">
           ${formatCurrency(summary.balance)}
@@ -126,7 +124,7 @@ const Dashboard = {
           <h3>Sem despesas este mês</h3>
           <p>Adicione uma transação para ver o gráfico</p>
         </div>`;
-      lucide.createIcons();
+      if (window.lucide) lucide.createIcons();
       return;
     }
 
@@ -149,7 +147,6 @@ const Dashboard = {
         responsive: true,
         maintainAspectRatio: false,
         cutout: '70%',
-        // Charts don't re-animate on return (Emil: seen many times/day)
         animation: false,
         plugins: {
           legend: {
@@ -221,7 +218,6 @@ const Dashboard = {
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        // No animation on return visits (Emil rule)
         animation: false,
         interaction: { mode: 'index', intersect: false },
         plugins: {
@@ -264,7 +260,7 @@ const Dashboard = {
           <h3>Nenhuma transação</h3>
           <p>Clique em "Nova Transação" para começar a registrar seus gastos e receitas.</p>
         </div>`;
-      lucide.createIcons();
+      if (window.lucide) lucide.createIcons();
       return;
     }
 
@@ -279,7 +275,12 @@ const Dashboard = {
       <div class="transactions-list">
         ${transactions.map(tx => this._txItem(tx)).join('')}
       </div>`;
-    lucide.createIcons();
+
+    container.querySelectorAll('.btn-delete-tx').forEach(btn => {
+      btn.onclick = () => App.deleteTransaction(btn.dataset.txId);
+    });
+
+    if (window.lucide) lucide.createIcons();
   },
 
   _txItem(tx) {
@@ -290,17 +291,19 @@ const Dashboard = {
           <i data-lucide="${icon}" style="width:18px;height:18px;"></i>
         </div>
         <div class="tx-info">
-          <div class="tx-desc">${tx.description}</div>
-          <div class="tx-meta">${formatDate(tx.date)} · ${tx.category}</div>
+          <div class="tx-desc">${escapeHTML(tx.description)}</div>
+          <div class="tx-meta">${formatDate(tx.date)} · ${escapeHTML(tx.category)}</div>
         </div>
         <div class="tx-amount ${tx.type}">
           ${tx.type === 'expense' ? '-' : '+'}${formatCurrency(tx.amount)}
         </div>
         <div class="tx-actions">
-          <button class="btn-icon" onclick="App.deleteTransaction('${tx.id}')" title="Excluir">
+          <button class="btn-icon btn-delete-tx" data-tx-id="${tx.id}" title="Excluir">
             <i data-lucide="trash-2" style="width:13px;height:13px;"></i>
           </button>
         </div>
       </div>`;
   },
 };
+
+window.Dashboard = Dashboard;

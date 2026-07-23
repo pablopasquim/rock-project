@@ -1,4 +1,4 @@
-// ─── Transactions Module ──────────────────────────────────────────────────────
+// ─── Transactions Module (Vibrant Purple Fintech Edition) ───────────────────
 const Transactions = {
   _catIcon: {
     alimentacao: 'utensils', transporte: 'car', moradia: 'home',
@@ -10,35 +10,32 @@ const Transactions = {
   _activeCat: '',
 
   async render(container, monthKey) {
-    // Reset dos filtros ao carregar para evitar estado antigo mantido
     this._activeType = '';
     this._activeCat = '';
 
     container.innerHTML = `
-      <div class="card">
-        <!-- Compact header: count + total -->
-        <div class="transactions-header">
+      <div class="panel-card" style="padding:32px;">
+        <!-- Compact Header -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
           <div>
-            <div style="font-size:15px;font-weight:700;color:var(--text-primary);margin-bottom:2px;">
-              Transações — ${escapeHTML(formatMonthLabel(monthKey))}
-            </div>
-            <div class="transactions-meta" id="tx-meta-summary">Carregando...</div>
+            <h2 class="panel-title" style="font-size:1.2rem;">Transações · ${escapeHTML(formatMonthLabel(monthKey))}</h2>
+            <span class="tx-date" id="tx-meta-summary">Carregando extrato...</span>
           </div>
-          <button class="btn btn-primary" id="btn-tx-new" style="font-size:13px;padding:9px 16px;">
-            <i data-lucide="plus" style="width:15px;height:15px;"></i>
-            Nova Transação
+          <button class="btn-primary-cockpit" id="btn-tx-new">
+            <i data-lucide="plus" style="width:16px;height:16px;"></i>
+            <span>Nova Transação</span>
           </button>
         </div>
 
-        <!-- Filter chips (type) -->
-        <div class="filter-chips" id="filter-chips" style="margin-bottom:14px;">
-          <button class="filter-chip active" data-type="">Tudo</button>
-          <button class="filter-chip" data-type="expense">Despesas</button>
-          <button class="filter-chip" data-type="income">Receitas</button>
+        <!-- Filter Chips Type -->
+        <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;" id="filter-chips">
+          <button class="topbar-btn active" data-type="" style="width:auto;padding:6px 16px;border-radius:20px;background:var(--primary);color:#fff;border:none;">Tudo</button>
+          <button class="topbar-btn" data-type="expense" style="width:auto;padding:6px 16px;border-radius:20px;">Despesas</button>
+          <button class="topbar-btn" data-type="income" style="width:auto;padding:6px 16px;border-radius:20px;">Receitas</button>
         </div>
 
-        <!-- Category chips (populated after load) -->
-        <div class="filter-chips" id="cat-chips" style="margin-bottom:16px;"></div>
+        <!-- Filter Chips Category -->
+        <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;" id="cat-chips"></div>
 
         <div id="tx-list"><div class="loader"><div class="spinner"></div></div></div>
       </div>
@@ -46,7 +43,7 @@ const Transactions = {
 
     document.getElementById('btn-tx-new')?.addEventListener('click', () => App.openAddModal());
 
-    document.querySelectorAll('#filter-chips .filter-chip').forEach(btn => {
+    document.querySelectorAll('#filter-chips .topbar-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         this._setTypeFilter(btn.dataset.type, btn);
       });
@@ -69,12 +66,12 @@ const Transactions = {
     if (!container || !cats.length) return;
 
     container.innerHTML = cats.map(c => `
-      <button class="filter-chip" data-cat="${escapeHTML(c)}">
+      <button class="topbar-btn" data-cat="${escapeHTML(c)}" style="width:auto;padding:4px 14px;font-size:0.8rem;border-radius:18px;">
         ${escapeHTML(c.charAt(0).toUpperCase() + c.slice(1))}
       </button>
     `).join('');
 
-    container.querySelectorAll('.filter-chip').forEach(btn => {
+    container.querySelectorAll('.topbar-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         this._setCatFilter(btn.dataset.cat, btn);
       });
@@ -83,19 +80,30 @@ const Transactions = {
 
   _setTypeFilter(type, btn) {
     this._activeType = type;
-    document.querySelectorAll('#filter-chips .filter-chip').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
+    document.querySelectorAll('#filter-chips .topbar-btn').forEach(b => {
+      b.style.background = 'var(--bg-surface)';
+      b.style.color = 'var(--text-secondary)';
+      b.style.border = '1px solid var(--border)';
+    });
+    btn.style.background = 'var(--primary)';
+    btn.style.color = '#ffffff';
+    btn.style.border = 'none';
     this._applyFilters();
   },
 
   _setCatFilter(cat, btn) {
     if (this._activeCat === cat) {
       this._activeCat = '';
-      btn.classList.remove('active');
+      btn.style.background = 'var(--bg-surface)';
+      btn.style.color = 'var(--text-secondary)';
     } else {
       this._activeCat = cat;
-      document.querySelectorAll('#cat-chips .filter-chip').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
+      document.querySelectorAll('#cat-chips .topbar-btn').forEach(b => {
+        b.style.background = 'var(--bg-surface)';
+        b.style.color = 'var(--text-secondary)';
+      });
+      btn.style.background = 'var(--primary)';
+      btn.style.color = '#ffffff';
     }
     this._applyFilters();
   },
@@ -115,23 +123,17 @@ const Transactions = {
     const metaEl = document.getElementById('tx-meta-summary');
     if (metaEl) {
       metaEl.textContent = transactions.length
-        ? `${transactions.length} transação(ões) · ${formatCurrency(totalExpenses)} em despesas`
+        ? `${transactions.length} movimentações no período · ${formatCurrency(totalExpenses)} em despesas`
         : 'Nenhum resultado';
     }
 
     if (!transactions.length) {
       container.innerHTML = `
         <div class="empty-state">
-          <div class="empty-state-icon">
-            <i data-lucide="receipt" style="width:28px;height:28px;"></i>
-          </div>
+          <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
           <h3>Nenhuma transação encontrada</h3>
-          <p>Tente outro filtro ou adicione uma nova transação.</p>
-          <button class="btn btn-primary" id="btn-tx-empty-new" style="margin-top:12px;">
-            <i data-lucide="plus" style="width:15px;height:15px;"></i> Nova Transação
-          </button>
+          <p>Tente remover os filtros ou adicione uma nova transação.</p>
         </div>`;
-      document.getElementById('btn-tx-empty-new')?.addEventListener('click', () => App.openAddModal());
       if (window.lucide) lucide.createIcons();
       return;
     }
@@ -145,32 +147,31 @@ const Transactions = {
     container.innerHTML = Object.entries(grouped)
       .sort(([a], [b]) => b.localeCompare(a))
       .map(([date, txs]) => `
-        <div style="margin-bottom:14px;">
-          <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:8px;padding:0 2px;">
+        <div style="margin-bottom:18px;">
+          <div style="font-size:0.8rem;color:var(--text-muted);font-weight:700;letter-spacing:0.04em;margin-bottom:10px;padding-left:4px;">
             ${formatDate(date)}
           </div>
-          <div class="transactions-list">
+          <div class="recent-tx-list">
             ${txs.map(tx => `
-              <div class="transaction-item" id="tx-${tx.id}">
-                <div class="tx-icon ${tx.type}">
-                  <i data-lucide="${this._catIcon[tx.category] || 'package'}" style="width:18px;height:18px;"></i>
-                </div>
-                <div class="tx-info">
-                  <div class="tx-desc">${escapeHTML(tx.description)}</div>
-                  <div class="tx-meta">
-                    <span class="badge ${tx.type}">${tx.type === 'expense' ? 'Despesa' : 'Receita'}</span>
-                    · ${escapeHTML(tx.category)}
+              <div class="tx-item-compact" id="tx-${tx.id}">
+                <div class="tx-item-left">
+                  <div class="tx-icon-circle ${tx.type}">
+                    <i data-lucide="${this._catIcon[tx.category] || 'package'}" style="width:18px;height:18px;"></i>
+                  </div>
+                  <div>
+                    <div class="tx-desc">${escapeHTML(tx.description)}</div>
+                    <div class="tx-date">${escapeHTML(tx.category)}</div>
                   </div>
                 </div>
-                <div class="tx-amount ${tx.type}">
-                  ${tx.type === 'expense' ? '-' : '+'}${formatCurrency(tx.amount)}
-                </div>
-                <div class="tx-actions">
-                  <button class="btn-icon btn-edit-tx" data-tx='${JSON.stringify(tx).replace(/'/g, "&#39;")}' title="Editar">
-                    <i data-lucide="pencil" style="width:13px;height:13px;"></i>
+                <div style="display:flex;align-items:center;gap:12px;">
+                  <div class="tx-amount ${tx.type}">
+                    ${tx.type === 'expense' ? '-' : '+'}${formatCurrency(tx.amount)}
+                  </div>
+                  <button class="topbar-btn btn-edit-tx" data-tx='${JSON.stringify(tx).replace(/'/g, "&#39;")}' title="Editar" style="width:30px;height:30px;border:none;">
+                    <i data-lucide="pencil" style="width:14px;height:14px;"></i>
                   </button>
-                  <button class="btn-icon btn-delete-tx" data-tx-id="${tx.id}" title="Excluir">
-                    <i data-lucide="trash-2" style="width:13px;height:13px;"></i>
+                  <button class="topbar-btn btn-delete-tx" data-tx-id="${tx.id}" title="Excluir" style="width:30px;height:30px;border:none;color:var(--expense);">
+                    <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
                   </button>
                 </div>
               </div>
@@ -195,13 +196,6 @@ const Transactions = {
     });
 
     if (window.lucide) lucide.createIcons();
-  },
-
-  animateNewItem(id) {
-    const el = document.getElementById(`tx-${id}`);
-    if (el) {
-      el.classList.add('tx-enter');
-    }
   },
 };
 

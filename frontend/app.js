@@ -108,7 +108,7 @@ function toast(message, type = 'info', duration = 3500) {
 function formatMonthLabel(monthKey) {
   if (!monthKey || typeof monthKey !== 'string') return '';
   const [y, m] = monthKey.split('-');
-  const names = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const names = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
   const mIdx = parseInt(m, 10) - 1;
   return `${names[mIdx] || m} ${y}`;
 }
@@ -159,10 +159,10 @@ async function initMonthSelector() {
 
 // ─── Router ─────────────────────────────────────────────────────────────────
 const PAGE_META = {
-  dashboard:    { title: 'Dashboard',    subtitle: 'Visão geral do seu mês' },
-  transactions: { title: 'Transações',   subtitle: 'Adicione e gerencie suas transações' },
-  history:      { title: 'Histórico',    subtitle: 'Navegue pelos seus meses anteriores' },
-  chat:         { title: 'Rock Advisor', subtitle: 'Seu guia financeiro com inteligência artificial' },
+  dashboard: { title: 'Dashboard', subtitle: 'Visão geral do seu mês' },
+  transactions: { title: 'Transações', subtitle: 'Adicione e gerencie suas transações' },
+  history: { title: 'Histórico', subtitle: 'Navegue pelos seus meses anteriores' },
+  chat: { title: 'Rock Advisor', subtitle: 'Seu guia financeiro com inteligência artificial' },
 };
 
 function navigate(page) {
@@ -187,11 +187,11 @@ async function renderPage(page) {
 
   try {
     switch (page) {
-      case 'dashboard':    await Dashboard.render(content, State.currentMonth); break;
+      case 'dashboard': await Dashboard.render(content, State.currentMonth); break;
       case 'transactions': await Transactions.render(content, State.currentMonth); break;
-      case 'history':      await History.render(content, State.currentMonth); break;
-      case 'chat':         await Chat.render(content); break;
-      default:             content.innerHTML = '<p>Página não encontrada</p>';
+      case 'history': await History.render(content, State.currentMonth); break;
+      case 'chat': await Chat.render(content); break;
+      default: content.innerHTML = '<p>Página não encontrada</p>';
     }
   } catch (err) {
     console.error(err);
@@ -268,7 +268,7 @@ const App = {
     State.selectedType = type;
     document.getElementById('btn-type-expense').className = `type-btn ${type === 'expense' ? 'active expense' : ''}`;
     document.getElementById('btn-type-income').className = `type-btn ${type === 'income' ? 'active income' : ''}`;
-    
+
     if (!State.editingTxId) {
       document.getElementById('installments-row').style.display = type === 'expense' ? 'flex' : 'none';
       if (type === 'income') {
@@ -291,10 +291,10 @@ const App = {
     const amountInput = document.getElementById('tx-amount').value;
     const totalAmount = parseFloat(amountInput) || 0;
     const select = document.getElementById('tx-installments');
-    
+
     const currentVal = select.value || "2";
     select.innerHTML = '';
-    
+
     if (totalAmount <= 0) {
       select.innerHTML = '<option value="2">Digite o valor primeiro...</option>';
       return;
@@ -320,9 +320,9 @@ const App = {
       'more-horizontal': 'more-horizontal', briefcase: 'briefcase', laptop: 'laptop',
     };
     const labels = {
-      alimentacao:'Alimentação', transporte:'Transporte', moradia:'Moradia',
-      lazer:'Lazer', saude:'Saúde', educacao:'Educação',
-      salario:'Salário', freelance:'Freelance', outros:'Outros',
+      alimentacao: 'Alimentação', transporte: 'Transporte', moradia: 'Moradia',
+      lazer: 'Lazer', saude: 'Saúde', educacao: 'Educação',
+      salario: 'Salário', freelance: 'Freelance', outros: 'Outros',
     };
     grid.innerHTML = cats.map(cat => `
       <button type="button" class="cat-btn ${State.selectedCategory === cat.id ? 'selected' : ''}" data-cat-id="${cat.id}">
@@ -354,11 +354,11 @@ const App = {
     btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;"></div>';
 
     const payload = {
-      type:        State.selectedType,
-      amount:      parseFloat(document.getElementById('tx-amount').value),
-      date:        document.getElementById('tx-date').value,
+      type: State.selectedType,
+      amount: parseFloat(document.getElementById('tx-amount').value),
+      date: document.getElementById('tx-date').value,
       description: document.getElementById('tx-description').value.trim(),
-      category:    State.selectedCategory,
+      category: State.selectedCategory,
     };
 
     if (!State.editingTxId && State.selectedType === 'expense' && document.getElementById('tx-is-installment').checked) {
@@ -408,7 +408,7 @@ const App = {
 window.App = App;
 
 // ─── Setup Event Listeners & Auth Init ───────────────────────────────────────
-window.onAppInit = async function() {
+window.onAppInit = async function () {
   try {
     const data = await API.get('/api/transactions/categories');
     State.categories = data;
@@ -452,7 +452,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error("Erro no login Firebase:", err);
         let errorText = "Erro ao realizar login. Tente novamente.";
         const code = err.code || "";
-        
+
         if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') {
           errorText = "E-mail ou senha incorretos. Verifique se a conta foi cadastrada no Firebase Console.";
         } else if (code === 'auth/invalid-api-key') {
@@ -495,6 +495,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // Topbar Add Transaction button
   const addTxBtn = document.getElementById('btn-add-transaction');
   if (addTxBtn) addTxBtn.addEventListener('click', () => App.openAddModal());
+
+  // Mobile FAB button
+  const mobileFab = document.getElementById('btn-mobile-fab');
+  if (mobileFab) mobileFab.addEventListener('click', () => App.openAddModal());
 
   // Modal type buttons & form
   document.getElementById('btn-type-expense')?.addEventListener('click', () => App.setType('expense'));

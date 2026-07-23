@@ -5,25 +5,26 @@
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
-# Preserva nome real do serviço da infraestrutura existente
-SERVICE_NAME="${SERVICE_NAME:-agent-finance}"
-IMAGE_NAME="${IMAGE_NAME:-agent-finance-api}"
-ARTIFACT_REPO="${ARTIFACT_REPO:-agent-finance}"
-
 # Cores
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
 info()    { echo -e "${BLUE}[INFO]${NC} $1"; }
 success() { echo -e "${GREEN}[OK]${NC} $1"; }
 error()   { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 
-# Carrega variáveis do arquivo backend/.env se disponível
+# Carrega variáveis do arquivo backend/.env se disponível (com suporte a CRLF do Windows)
 if [[ -f "backend/.env" ]]; then
-  info "Carregando variáveis de ambiente do backend/.env..."
-  set -a
-  # Carrega ignorando linhas de comentário ou vazias
-  source <(grep -v '^#' backend/.env | grep -v '^\s*$')
-  set +a
+  info "Carregando variáveis de ambiente de backend/.env..."
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line=$(echo "$line" | tr -d '\r')
+    if [[ -n "$line" && ! "$line" =~ ^[[:space:]]*# ]]; then
+      export "$line" 2>/dev/null || true
+    fi
+  done < "backend/.env"
 fi
+
+SERVICE_NAME="${SERVICE_NAME:-agent-finance}"
+IMAGE_NAME="${IMAGE_NAME:-agent-finance-api}"
+ARTIFACT_REPO="${ARTIFACT_REPO:-agent-finance}"
 
 PROJECT_ID="${GCP_PROJECT_ID:-}"
 REGION="${GCP_REGION:-us-central1}"

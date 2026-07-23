@@ -1,78 +1,73 @@
 #!/usr/bin/env bash
-# ─── Agent Finance — Deploy Script ───────────────────────────────────────────
+# ─── Rock Finance — Secure Deploy Script ─────────────────────────────────────
 # Uso: bash deploy.sh
-# Pré-requisitos: gcloud CLI autenticado, Docker instalado
+# Pré-requisitos: gcloud CLI autenticado, Secret Manager configurado
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
-# ─── Configuração — EDITE AQUI ───────────────────────────────────────────────
-PROJECT_ID="${GCP_PROJECT_ID:-dev-pablo}"
+PROJECT_ID="${GCP_PROJECT_ID:-rock-finance-prod}"
 REGION="${GCP_REGION:-us-central1}"
-SERVICE_NAME="agent-finance"
-IMAGE_NAME="agent-finance-api"
-GEMINI_API_KEY="${GEMINI_API_KEY:-}"
-# Se não estiver exportada no terminal, tenta puxar do .env
-if [[ -z "$GEMINI_API_KEY" && -f "backend/.env" ]]; then
-  GEMINI_API_KEY=$(grep '^GEMINI_API_KEY=' backend/.env | cut -d '=' -f 2- | tr -d '\r' | tr -d '"' | tr -d "'")
-fi
-# ─────────────────────────────────────────────────────────────────────────────
+SERVICE_NAME="rock-finance"
+IMAGE_NAME="rock-finance-api"
 
-# Cores para output
+HOUSEHOLD_ID="${HOUSEHOLD_ID:-rock-family}"
+ALLOWED_USER_EMAILS="${ALLOWED_USER_EMAILS:-user1@example.com,user2@example.com}"
+APP_ORIGINS="${APP_ORIGINS:-https://${SERVICE_NAME}-${PROJECT_ID}.${REGION}.run.app}"
+
+FIREBASE_API_KEY="${FIREBASE_API_KEY:-}"
+FIREBASE_AUTH_DOMAIN="${FIREBASE_AUTH_DOMAIN:-${PROJECT_ID}.firebaseapp.com}"
+FIREBASE_PROJECT_ID="${FIREBASE_PROJECT_ID:-${PROJECT_ID}}"
+FIREBASE_APP_ID="${FIREBASE_APP_ID:-}"
+
+# Cores
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
-
 info()    { echo -e "${BLUE}[INFO]${NC} $1"; }
 success() { echo -e "${GREEN}[OK]${NC} $1"; }
-warn()    { echo -e "${YELLOW}[WARN]${NC} $1"; }
 error()   { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 
-# ─── Validações ───────────────────────────────────────────────────────────────
+# Validações pré-deploy
 [[ -z "$PROJECT_ID" || "$PROJECT_ID" == "seu-projeto-gcp" ]] && error "Configure GCP_PROJECT_ID antes de rodar o deploy!"
-[[ -z "$GEMINI_API_KEY" ]] && error "Configure GEMINI_API_KEY antes de rodar o deploy!"
+[[ -z "$ALLOWED_USER_EMAILS" ]] && error "Configure ALLOWED_USER_EMAILS antes de rodar o deploy!"
 
-info "Projeto GCP: $PROJECT_ID"
-info "Região: $REGION"
-info "Serviço: $SERVICE_NAME"
+info "Iniciando validação e build para $PROJECT_ID ($SERVICE_NAME)..."
 
-# ─── Configurar gcloud ────────────────────────────────────────────────────────
-info "Configurando gcloud..."
+# 1. Configurar gcloud
 gcloud config set project "$PROJECT_ID" --quiet
 
-# ─── Habilitar APIs necessárias ───────────────────────────────────────────────
-info "Habilitando APIs GCP..."
+# 2. Habilitar APIs necessárias
+info "Habilitando APIs GCP necessárias..."
 gcloud services enable \
   run.googleapis.com \
   firestore.googleapis.com \
   artifactregistry.googleapis.com \
+  secretmanager.googleapis.com \
   --quiet
 
-# ─── Criar repositório no Artifact Registry (se não existir) ─────────────────
-REPO_EXISTS=$(gcloud artifacts repositories list --location="$REGION" --format="value(name)" 2>/dev/null | grep -c "agent-finance" || true)
-if [[ "$REPO_EXISTS" -eq 0 ]]; then
-  info "Criando repositório no Artifact Registry..."
-  gcloud artifacts repositories create agent-finance \
-    --repository-format=docker \
-    --location="$REGION" \
-    --description="Agent Finance Docker images" \
-    --quiet
-  success "Repositório criado"
-else
-  info "Repositório já existe, pulando criação"
-fi
+# 3. Gerar arquivo temporário de env-vars (YAML) para tratar com segurança valores com vírgula
+ENV_YAML_TMP="tmp_env_vars_deploy.yaml"
+trap 'rm -f "$ENV_YAML_TMP"' EXIT
 
-# ─── Configurar Firestore (se necessário) ─────────────────────────────────────
-info "Verificando Firestore..."
-gcloud firestore databases list --quiet 2>/dev/null | grep -q "(default)" && \
-  info "Firestore já configurado" || \
-  gcloud firestore databases create --location="$REGION" --quiet && success "Firestore criado"
+cat <<EOF > "$ENV_YAML_TMP"
+ENVIRONMENT: "production"
+GCP_PROJECT_ID: "${PROJECT_ID}"
+FIRESTORE_DATABASE: "(default)"
+HOUSEHOLD_ID: "${HOUSEHOLD_ID}"
+ALLOWED_USER_EMAILS: "${ALLOWED_USER_EMAILS}"
+APP_ORIGINS: "${APP_ORIGINS}"
+FIREBASE_API_KEY: "${FIREBASE_API_KEY}"
+FIREBASE_AUTH_DOMAIN: "${FIREBASE_AUTH_DOMAIN}"
+FIREBASE_PROJECT_ID: "${FIREBASE_PROJECT_ID}"
+FIREBASE_APP_ID: "${FIREBASE_APP_ID}"
+AUTH_DEV_BYPASS: "false"
+EOF
 
-# ─── Build e Push da imagem (Cloud Build) ────────────────────────────────────
-IMAGE_URI="${REGION}-docker.pkg.dev/${PROJECT_ID}/agent-finance/${IMAGE_NAME}:latest"
-info "Construindo e enviando imagem via Google Cloud Build (sem precisar de Docker local): $IMAGE_URI"
-
+# 4. Build via Google Cloud Build
+IMAGE_URI="${REGION}-docker.pkg.dev/${PROJECT_ID}/rock-finance/${IMAGE_NAME}:latest"
+info "Construindo imagem de produção via Cloud Build: $IMAGE_URI"
 gcloud builds submit --tag "$IMAGE_URI" .
-success "Imagem construída e enviada com sucesso"
+success "Imagem construída com sucesso!"
 
-# ─── Deploy no Cloud Run ──────────────────────────────────────────────────────
+# 5. Deploy no Cloud Run (max-instances=1, secrets via Secret Manager)
 info "Fazendo deploy no Cloud Run..."
 gcloud run deploy "$SERVICE_NAME" \
   --image="$IMAGE_URI" \
@@ -80,20 +75,17 @@ gcloud run deploy "$SERVICE_NAME" \
   --platform=managed \
   --allow-unauthenticated \
   --min-instances=0 \
-  --max-instances=10 \
+  --max-instances=1 \
   --memory=512Mi \
   --cpu=1 \
   --timeout=60 \
-  --set-env-vars="GCP_PROJECT_ID=${PROJECT_ID},ENVIRONMENT=production,GEMINI_API_KEY=${GEMINI_API_KEY}" \
+  --env-vars-file="$ENV_YAML_TMP" \
+  --set-secrets="GEMINI_API_KEY=gemini-api-key:latest" \
   --quiet
 
-# ─── Resultado ────────────────────────────────────────────────────────────────
-SERVICE_URL=$(gcloud run services describe "$SERVICE_NAME" \
-  --region="$REGION" \
-  --format="value(status.url)")
+SERVICE_URL=$(gcloud run services describe "$SERVICE_NAME" --region="$REGION" --format="value(status.url)")
 
-success "Deploy concluído!"
+success "Deploy de produção concluído com sucesso!"
 echo ""
 echo -e "${GREEN}🚀 App disponível em: ${SERVICE_URL}${NC}"
-echo -e "${GREEN}📊 Health check: ${SERVICE_URL}/api/health${NC}"
-echo ""
+echo -e "${GREEN}📊 Health Check: ${SERVICE_URL}/api/health${NC}"

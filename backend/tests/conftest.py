@@ -2,9 +2,9 @@
 Fixtures compartilhadas para todos os testes.
 
 Estratégia de mock:
-1. Mockar google-cloud-firestore e google-generativeai em sys.modules
+1. Mockar google-cloud-firestore, firebase_admin e google-genai em sys.modules
    ANTES de qualquer import do backend (nível de módulo).
-2. Importar o app e os routers normalmente (eles usam os mocks).
+2. Importar o app e os routers normalmente.
 3. Usar patch.object() no fixture para substituir 'fs' e 'gemini'
    dentro de cada router — sem precisar de credenciais GCP.
 """
@@ -12,22 +12,29 @@ import sys
 from unittest.mock import MagicMock, patch
 import pytest
 
-# ── 1. Mockar libs Google antes de qualquer import do backend ─────────────────
+# ── 1. Mockar libs Google e Firebase antes de qualquer import do backend ────────
 _GOOGLE_MOCKS = [
     "google",
     "google.cloud",
     "google.cloud.firestore",
     "google.cloud.firestore_v1",
     "google.cloud.firestore_v1.base_query",
+    "google.genai",
+    "google.genai.types",
     "google.generativeai",
+    "firebase_admin",
+    "firebase_admin.auth",
+    "firebase_admin.credentials",
 ]
 for _mod_name in _GOOGLE_MOCKS:
     if _mod_name not in sys.modules:
         sys.modules[_mod_name] = MagicMock()
 
-# ── 2. Agora é seguro importar o backend ──────────────────────────────────────
+# ── 2. Importar backend ───────────────────────────────────────────────────────
 from fastapi.testclient import TestClient  # noqa: E402
 from backend.main import app  # noqa: E402
+from backend.services.auth_service import get_current_user  # noqa: E402
+from backend.routers.chat import reset_rate_limiter  # noqa: E402
 import backend.routers.transactions as _tx_router   # noqa: E402
 import backend.routers.dashboard as _dash_router    # noqa: E402
 import backend.routers.history as _hist_router      # noqa: E402
@@ -84,17 +91,24 @@ SAMPLE_MONTH_DETAIL = {
 }
 
 
-# ── 3. Fixture: TestClient com mocks injetados via patch.object ───────────────
+# ── 3. Fixture: TestClient com mocks injetados ────────────────────────────────
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limit_between_tests():
+    reset_rate_limiter()
+    yield
+    reset_rate_limiter()
+
 
 @pytest.fixture
 def client():
     """
-    TestClient com Firestore e Gemini completamente mockados.
-    Nenhuma credencial GCP ou Gemini API Key é necessária.
+    TestClient com Firestore, Gemini e Auth mockados por padrão.
+    Nenhuma credencial GCP ou Firebase é necessária.
     """
-    # Mock do serviço Firestore
     mock_fs = MagicMock()
     mock_fs.create_transaction.return_value = SAMPLE_TX
+    mock_fs.create_transactions_batch.return_value = SAMPLE_TX
     mock_fs.get_transactions.return_value = [SAMPLE_TX, SAMPLE_TX_INCOME]
     mock_fs.get_transaction_by_id.return_value = SAMPLE_TX
     mock_fs.update_transaction.return_value = {**SAMPLE_TX, "description": "Atualizado"}
@@ -104,9 +118,7 @@ def client():
     mock_fs.get_monthly_evolution.return_value = SAMPLE_EVOLUTION
     mock_fs.get_available_months.return_value = ["2026-07", "2026-06"]
     mock_fs.get_financial_context.return_value = "Receitas: R$ 5000. Despesas: R$ 150."
-    mock_fs.save_chat_message.return_value = None
 
-    # Mock do serviço Gemini
     mock_gemini = MagicMock()
     mock_gemini.chat_with_context.return_value = (
         "Voce esta indo muito bem! Seu saldo e positivo."
@@ -116,7 +128,16 @@ def client():
         "Em qual categoria gasto mais?",
     ]
 
-    # patch.object substitui o atributo diretamente no módulo já importado
+    # Override de dependência de usuário autenticado por padrão para os testes existentes
+    async def _mock_get_current_user():
+        return {
+            "uid": "test-user-uid",
+            "email": "user1@example.com",
+            "is_dev_bypass": False,
+        }
+
+    app.dependency_overrides[get_current_user] = _mock_get_current_user
+
     with patch.object(_tx_router, "fs", mock_fs), \
          patch.object(_dash_router, "fs", mock_fs), \
          patch.object(_hist_router, "fs", mock_fs), \
@@ -124,7 +145,8 @@ def client():
          patch.object(_chat_router, "gemini", mock_gemini):
 
         with TestClient(app) as c:
-            # Expõe os mocks para os testes que precisam de assert
             c._mock_fs = mock_fs
             c._mock_gemini = mock_gemini
             yield c
+
+    app.dependency_overrides.clear()

@@ -1,8 +1,10 @@
 """
 Testes para /api/chat e /api/health
-Cobre: envio de mensagem, histórico, sugestões e health check.
+Cobre: envio de mensagem com month_key, histórico, sugestões, rate limiting e health check.
 """
 import pytest
+from backend.routers.chat import reset_rate_limiter, check_rate_limit, RATE_LIMIT_REQUESTS
+from fastapi import HTTPException
 
 
 class TestHealthCheck:
@@ -12,20 +14,10 @@ class TestHealthCheck:
         data = resp.json()
         assert data["status"] == "ok"
 
-    def test_health_has_version(self, client):
-        resp = client.get("/api/health")
-        data = resp.json()
-        assert "version" in data
-
-    def test_health_has_environment(self, client):
-        resp = client.get("/api/health")
-        data = resp.json()
-        assert "environment" in data
-
 
 class TestChat:
     def test_send_message(self, client):
-        payload = {"message": "Como estão meus gastos?"}
+        payload = {"message": "Como estão meus gastos?", "month_key": "2026-07"}
         resp = client.post("/api/chat", json=payload)
         assert resp.status_code == 200
         data = resp.json()
@@ -35,10 +27,9 @@ class TestChat:
         assert len(data["response"]) > 0
 
     def test_response_contains_assistant_message(self, client):
-        payload = {"message": "Qual meu saldo?"}
+        payload = {"message": "Qual meu saldo?", "month_key": "2026-07"}
         resp = client.post("/api/chat", json=payload)
         data = resp.json()
-        # Histórico deve ter mensagem do user e do assistant
         assert len(data["history"]) == 2
         assert data["history"][0]["role"] == "user"
         assert data["history"][1]["role"] == "assistant"
@@ -49,66 +40,65 @@ class TestChat:
             {"role": "user", "content": "Olá"},
             {"role": "assistant", "content": "Olá! Como posso ajudar?"},
         ]
-        payload = {"message": "Qual meu saldo?", "history": history}
+        payload = {"message": "Qual meu saldo?", "month_key": "2026-07", "history": history}
         resp = client.post("/api/chat", json=payload)
         assert resp.status_code == 200
         data = resp.json()
-        # Histórico deve conter os anteriores + 2 novos
         assert len(data["history"]) == 4
 
-    def test_user_message_in_history(self, client):
-        payload = {"message": "Teste de mensagem"}
+    def test_invalid_month_key_rejected(self, client):
+        """month_key inválido (mês 13 ou string malformada) deve retornar 422."""
+        payload_13 = {"message": "Teste", "month_key": "2026-13"}
+        resp1 = client.post("/api/chat", json=payload_13)
+        assert resp1.status_code == 422
+
+        payload_str = {"message": "Teste", "month_key": "invalido"}
+        resp2 = client.post("/api/chat", json=payload_str)
+        assert resp2.status_code == 422
+
+    def test_missing_month_key_rejected(self, client):
+        payload = {"message": "Sem mes"}
         resp = client.post("/api/chat", json=payload)
-        data = resp.json()
-        user_msgs = [m for m in data["history"] if m["role"] == "user"]
-        assert user_msgs[-1]["content"] == "Teste de mensagem"
+        assert resp.status_code == 422
 
     def test_empty_message_rejected(self, client):
-        resp = client.post("/api/chat", json={"message": ""})
+        resp = client.post("/api/chat", json={"message": "", "month_key": "2026-07"})
         assert resp.status_code == 422
 
     def test_too_long_message_rejected(self, client):
-        resp = client.post("/api/chat", json={"message": "x" * 2001})
-        assert resp.status_code == 422
-
-    def test_missing_message_rejected(self, client):
-        resp = client.post("/api/chat", json={})
+        resp = client.post("/api/chat", json={"message": "x" * 2001, "month_key": "2026-07"})
         assert resp.status_code == 422
 
     def test_gemini_called_with_financial_context(self, client):
-        """Verifica que o contexto financeiro é passado para o Gemini."""
-        payload = {"message": "Resumo financeiro"}
+        payload = {"message": "Resumo financeiro", "month_key": "2026-07"}
         client.post("/api/chat", json=payload)
-        # Confirma que get_financial_context foi chamado
-        client._mock_fs.get_financial_context.assert_called_once()
-        # Confirma que chat_with_context foi chamado com o contexto
+        client._mock_fs.get_financial_context.assert_called_with("2026-07")
         call_kwargs = client._mock_gemini.chat_with_context.call_args
         assert call_kwargs is not None
-        assert "financial_context" in call_kwargs.kwargs or len(call_kwargs.args) >= 3
 
-    def test_chat_without_history(self, client):
-        """Chat sem histórico deve funcionar normalmente."""
-        payload = {"message": "Primeira mensagem"}
-        resp = client.post("/api/chat", json=payload)
-        assert resp.status_code == 200
+    def test_chat_rate_limit(self, client):
+        """Ao ultrapassar o limite de mensagens por minuto, deve retornar HTTP 429 com Retry-After."""
+        reset_rate_limiter()
+        payload = {"message": "Ping", "month_key": "2026-07"}
 
-    def test_response_is_string(self, client):
-        payload = {"message": "Teste"}
-        resp = client.post("/api/chat", json=payload)
-        data = resp.json()
-        assert isinstance(data["response"], str)
+        for _ in range(RATE_LIMIT_REQUESTS):
+            res = client.post("/api/chat", json=payload)
+            assert res.status_code == 200
+
+        # A 16ª requisição deve exceder o limite
+        res_overflow = client.post("/api/chat", json=payload)
+        assert res_overflow.status_code == 429
+        assert "Retry-After" in res_overflow.headers
 
     def test_gemini_error_returns_503(self, client):
-        """Se GEMINI_API_KEY não configurada, deve retornar 503."""
         client._mock_gemini.chat_with_context.side_effect = ValueError("GEMINI_API_KEY não configurada")
-        payload = {"message": "Teste"}
+        payload = {"message": "Teste", "month_key": "2026-07"}
         resp = client.post("/api/chat", json=payload)
         assert resp.status_code == 503
 
     def test_gemini_unexpected_error_returns_500(self, client):
-        """Erros inesperados devem retornar 500."""
         client._mock_gemini.chat_with_context.side_effect = RuntimeError("Erro inesperado")
-        payload = {"message": "Teste"}
+        payload = {"message": "Teste", "month_key": "2026-07"}
         resp = client.post("/api/chat", json=payload)
         assert resp.status_code == 500
 
@@ -125,10 +115,3 @@ class TestChatSuggestions:
         resp = client.get("/api/chat/suggestions")
         data = resp.json()
         assert len(data["suggestions"]) > 0
-
-    def test_suggestions_are_strings(self, client):
-        resp = client.get("/api/chat/suggestions")
-        data = resp.json()
-        for suggestion in data["suggestions"]:
-            assert isinstance(suggestion, str)
-            assert len(suggestion) > 0

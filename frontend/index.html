@@ -24,7 +24,7 @@
   <!-- Styles -->
   <script src="/theme-init.js"></script>
   <link rel="stylesheet" href="/index.css" />
-  <link rel="stylesheet" href="/modern.css?v=20260724-8" />
+  <link rel="stylesheet" href="/modern.css?v=20260724-9" />
 
   <!-- Dependências Externas -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
@@ -159,7 +159,7 @@
         <div class="topbar-heading">
           <img src="/icons/icon.svg" alt="" class="mobile-brand-mark" aria-hidden="true" />
           <div>
-          <h1 class="topbar-title" id="page-title">Dashboard</h1>
+          <h1 class="topbar-title" id="page-title">Início</h1>
           <span class="topbar-subtitle" id="page-subtitle">Visão geral financeira</span>
           </div>
         </div>
@@ -262,7 +262,7 @@
         <div class="form-row">
           <div class="form-field">
             <label class="form-label" for="tx-amount">Valor (R$)</label>
-            <input class="modal-input" type="number" id="tx-amount" step="0.01" min="0.01" placeholder="0,00" required />
+            <input class="modal-input amount-input" type="number" id="tx-amount" step="0.01" min="0.01" inputmode="decimal" enterkeyhint="next" placeholder="0,00" required />
           </div>
           <div class="form-field">
             <label class="form-label" for="tx-date">Data</label>
@@ -284,7 +284,7 @@
         <!-- Descrição -->
         <div class="form-field">
           <label class="form-label" for="tx-description">Descrição</label>
-          <input class="modal-input" type="text" id="tx-description" placeholder="Ex: Supermercado, Salário..." required maxlength="200" />
+          <input class="modal-input" type="text" id="tx-description" placeholder="Ex: Supermercado, Salário..." autocomplete="off" autocapitalize="sentences" enterkeyhint="next" required maxlength="200" />
         </div>
 
         <!-- Categoria -->
@@ -310,11 +310,11 @@
 
   <!-- Scripts -->
   <script src="/auth.js?v=20260724-6"></script>
-  <script src="/modules/dashboard.js?v=20260724-6"></script>
-  <script src="/modules/transactions.js?v=20260724-6"></script>
+  <script src="/modules/dashboard.js?v=20260724-7"></script>
+  <script src="/modules/transactions.js?v=20260724-7"></script>
   <script src="/modules/history.js?v=20260724-6"></script>
   <script src="/modules/chat.js?v=20260724-6"></script>
-  <script src="/app.js?v=20260724-6"></script>
+  <script src="/app.js?v=20260724-7"></script>
   <script src="/pwa.js?v=20260724-7"></script>
 </body>
 </html>

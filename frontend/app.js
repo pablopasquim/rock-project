@@ -83,12 +83,21 @@ const API = {
 const State = {
   currentPage: 'dashboard',
   currentMonth: new Date().toLocaleDateString('sv').slice(0, 7),  // "YYYY-MM" local
+  pendingTransactionFilter: '',
   editingTxId: null,
   selectedType: 'expense',
   selectedCategory: '',
   categories: { expense: [], income: [] },
   lastFocusedElement: null,
 };
+
+function haptic(duration = 10) {
+  if (window.matchMedia('(pointer: coarse)').matches && navigator.vibrate) {
+    navigator.vibrate(duration);
+  }
+}
+
+window.haptic = haptic;
 
 // ─── Toast ──────────────────────────────────────────────────────────────────
 function toast(message, type = 'info', duration = 3500) {
@@ -164,11 +173,61 @@ async function initMonthSelector() {
 
 // ─── Router ─────────────────────────────────────────────────────────────────
 const PAGE_META = {
-  dashboard: { title: 'Dashboard', subtitle: 'Visão geral do seu mês' },
+  dashboard: { title: 'Início', subtitle: 'Visão geral do seu mês' },
   transactions: { title: 'Transações', subtitle: 'Adicione e gerencie suas transações' },
   history: { title: 'Histórico', subtitle: 'Navegue pelos seus meses anteriores' },
   chat: { title: 'Rock Advisor', subtitle: 'Seu guia financeiro com inteligência artificial' },
 };
+
+function pageSkeleton(page) {
+  if (page === 'dashboard') {
+    return `
+      <div class="page-skeleton dashboard-skeleton" aria-label="Carregando visão financeira" aria-busy="true">
+        <div class="skeleton-block skeleton-hero"></div>
+        <div class="skeleton-pair">
+          <div class="skeleton-block skeleton-stat"></div>
+          <div class="skeleton-block skeleton-stat"></div>
+        </div>
+        <div class="skeleton-block skeleton-panel"></div>
+      </div>`;
+  }
+
+  return `
+    <div class="page-skeleton" aria-label="Carregando conteúdo" aria-busy="true">
+      <div class="skeleton-block skeleton-heading"></div>
+      <div class="skeleton-block skeleton-row"></div>
+      <div class="skeleton-block skeleton-row"></div>
+      <div class="skeleton-block skeleton-row"></div>
+    </div>`;
+}
+
+function changeMonth(step) {
+  const [year, month] = State.currentMonth.split('-').map(Number);
+  const next = new Date(year, month - 1 + step, 1);
+  State.currentMonth = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`;
+
+  const select = document.getElementById('global-month-select');
+  if (select) {
+    if (![...select.options].some(option => option.value === State.currentMonth)) {
+      const option = document.createElement('option');
+      option.value = State.currentMonth;
+      option.textContent = formatMonthLabel(State.currentMonth);
+      select.appendChild(option);
+    }
+    select.value = State.currentMonth;
+  }
+
+  haptic();
+  renderPage(State.currentPage);
+}
+
+function openTransactions(type = '') {
+  State.pendingTransactionFilter = type;
+  navigate('transactions');
+}
+
+window.changeMonth = changeMonth;
+window.openTransactions = openTransactions;
 
 function navigate(page) {
   document.querySelectorAll('.nav-item, .mobile-nav-item').forEach(el => {
@@ -193,7 +252,10 @@ function navigate(page) {
 async function renderPage(page) {
   const content = document.getElementById('page-content');
   if (!content) return;
-  content.innerHTML = `<div class="loader"><div class="spinner"></div></div>`;
+  content.setAttribute('aria-busy', 'true');
+  content.classList.remove('page-ready');
+  content.classList.add('page-loading');
+  content.innerHTML = pageSkeleton(page);
 
   try {
     switch (page) {
@@ -213,6 +275,9 @@ async function renderPage(page) {
       </div>`;
   }
 
+  content.classList.remove('page-loading');
+  content.removeAttribute('aria-busy');
+  requestAnimationFrame(() => content.classList.add('page-ready'));
   if (window.lucide) lucide.createIcons();
 }
 
@@ -240,7 +305,11 @@ const App = {
 
     const modal = document.getElementById('transaction-modal');
     modal.style.display = 'flex';
-    document.getElementById('tx-amount').focus();
+    document.body.classList.add('modal-open');
+    modal.querySelector('.modal-content')?.scrollTo({ top: 0 });
+    if (window.matchMedia('(min-width: 768px)').matches) {
+      document.getElementById('tx-amount').focus();
+    }
     setTimeout(() => lucide.createIcons(), 50);
   },
 
@@ -262,13 +331,18 @@ const App = {
 
     const modal = document.getElementById('transaction-modal');
     modal.style.display = 'flex';
-    document.getElementById('tx-amount').focus();
+    document.body.classList.add('modal-open');
+    modal.querySelector('.modal-content')?.scrollTo({ top: 0 });
+    if (window.matchMedia('(min-width: 768px)').matches) {
+      document.getElementById('tx-amount').focus();
+    }
     setTimeout(() => lucide.createIcons(), 50);
   },
 
   closeModal() {
     const modal = document.getElementById('transaction-modal');
     modal.style.display = 'none';
+    document.body.classList.remove('modal-open');
     if (State.lastFocusedElement && typeof State.lastFocusedElement.focus === 'function') {
       State.lastFocusedElement.focus();
     }
@@ -353,6 +427,7 @@ const App = {
 
   selectCategory(id) {
     State.selectedCategory = id;
+    haptic();
     document.getElementById('tx-category').value = id;
     App.renderCategories();
   },
@@ -391,6 +466,7 @@ const App = {
         await API.post('/api/transactions', payload);
         toast('Transação adicionada!', 'success');
       }
+      haptic(18);
       App.closeModal();
       renderPage(State.currentPage);
     } catch (err) {
@@ -408,6 +484,7 @@ const App = {
     try {
       await API.delete(`/api/transactions/${id}`);
       toast('Transação excluída', 'success');
+      haptic(18);
       renderPage(State.currentPage);
     } catch (err) {
       toast('Erro ao excluir', 'error');
@@ -437,6 +514,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     el.addEventListener('click', (e) => {
       e.preventDefault();
+      haptic();
       navigate(el.dataset.page);
     });
   });
@@ -534,6 +612,21 @@ document.addEventListener('DOMContentLoaded', () => {
     modalOverlay.addEventListener('click', (e) => {
       if (e.target === modalOverlay) App.closeModal();
     });
+  }
+
+  const modalHeader = document.querySelector('.modal-header');
+  if (modalHeader) {
+    let touchStartY = 0;
+    modalHeader.addEventListener('touchstart', (event) => {
+      touchStartY = event.changedTouches[0]?.clientY || 0;
+    }, { passive: true });
+    modalHeader.addEventListener('touchend', (event) => {
+      const touchEndY = event.changedTouches[0]?.clientY || 0;
+      if (touchEndY - touchStartY > 72) {
+        haptic();
+        App.closeModal();
+      }
+    }, { passive: true });
   }
 
   document.addEventListener('keydown', (e) => {

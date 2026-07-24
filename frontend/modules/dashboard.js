@@ -10,6 +10,10 @@ const Dashboard = {
   },
 
   async render(container, monthKey) {
+    const chartPeriodLabel = window.matchMedia('(max-width: 767px)').matches
+      ? 'Evolução dos últimos 6 meses'
+      : 'Evolução dos últimos 12 meses';
+
     container.innerHTML = `
       <div class="page-container">
         <!-- Fintech Grid: Hero Balance & Pair Stat Cards -->
@@ -17,13 +21,28 @@ const Dashboard = {
           ${this._skeletonCards()}
         </div>
 
+        <div class="mobile-quick-actions" aria-label="Atalhos">
+          <button type="button" class="mobile-quick-action primary" id="dash-quick-add">
+            <span class="mobile-quick-action-icon"><i data-lucide="plus"></i></span>
+            <span>Adicionar</span>
+          </button>
+          <button type="button" class="mobile-quick-action" id="dash-quick-extract">
+            <span class="mobile-quick-action-icon"><i data-lucide="arrow-left-right"></i></span>
+            <span>Extrato</span>
+          </button>
+          <button type="button" class="mobile-quick-action" id="dash-quick-advisor">
+            <span class="mobile-quick-action-icon"><i data-lucide="sparkles"></i></span>
+            <span>Advisor</span>
+          </button>
+        </div>
+
         <!-- Dashboard Panels: Bar Chart Overview & Compact Recent List -->
         <div class="fintech-dashboard-grid" style="margin-top:24px;">
           <div class="panel-card evolution">
             <div class="panel-header">
               <div>
-                <h3 class="panel-title">Estatística & Visão Geral</h3>
-                <span class="tx-date">Evolução dos últimos 12 meses</span>
+                <h3 class="panel-title">Evolução mensal</h3>
+                <span class="tx-date">${chartPeriodLabel}</span>
               </div>
             </div>
             <div class="chart-container" style="height:280px;">
@@ -48,6 +67,9 @@ const Dashboard = {
     `;
 
     document.getElementById('btn-dash-view-all')?.addEventListener('click', () => navigate('transactions'));
+    document.getElementById('dash-quick-add')?.addEventListener('click', () => App.openAddModal());
+    document.getElementById('dash-quick-extract')?.addEventListener('click', () => openTransactions());
+    document.getElementById('dash-quick-advisor')?.addEventListener('click', () => navigate('chat'));
 
     Object.values(this.charts).forEach(c => c.destroy());
     this.charts = {};
@@ -68,13 +90,13 @@ const Dashboard = {
 
   _skeletonCards() {
     return `
-      <div class="purple-hero-card" style="opacity:0.6;">
-        <span class="hero-balance-title">Saldo Disponível</span>
-        <span class="hero-balance-amount">R$ ...</span>
+      <div class="purple-hero-card dashboard-card-skeleton">
+        <span class="skeleton-line skeleton-label"></span>
+        <span class="skeleton-line skeleton-value"></span>
       </div>
       <div class="stat-pair-container">
-        <div class="fintech-stat-card income" style="opacity:0.6;"><span class="stat-card-amount">—</span></div>
-        <div class="fintech-stat-card expense" style="opacity:0.6;"><span class="stat-card-amount">—</span></div>
+        <div class="fintech-stat-card dashboard-card-skeleton"><span class="skeleton-line skeleton-value small"></span></div>
+        <div class="fintech-stat-card dashboard-card-skeleton"><span class="skeleton-line skeleton-value small"></span></div>
       </div>
     `;
   },
@@ -89,53 +111,103 @@ const Dashboard = {
         <div class="purple-hero-top">
           <div>
             <span class="hero-balance-title">Saldo Disponível · ${escapeHTML(formatMonthLabel(summary.month_key))}</span>
-            <div class="hero-balance-amount">${formatCurrency(summary.balance)}</div>
+            <div class="hero-balance-amount" data-sensitive data-value="${escapeHTML(formatCurrency(summary.balance))}">${formatCurrency(summary.balance)}</div>
           </div>
-          <button class="topbar-btn" id="hero-quick-add" style="background:rgba(255,255,255,0.25);color:#ffffff;border:none;width:48px;height:48px;border-radius:16px;" title="Adicionar Transação">
-            <i data-lucide="plus" style="width:24px;height:24px;"></i>
+          <button class="hero-privacy-toggle" id="hero-privacy-toggle" type="button" aria-pressed="false" aria-label="Ocultar valores">
+            <i data-lucide="eye" aria-hidden="true"></i>
           </button>
         </div>
-        <div style="font-size:0.85rem;opacity:0.85;font-weight:500;">
-          ${summary.transaction_count} movimentação(ões) cadastradas neste período
+        <div class="hero-card-footer">
+          <button class="hero-month-btn" id="hero-prev-month" type="button" aria-label="Mês anterior">
+            <i data-lucide="chevron-left"></i>
+          </button>
+          <span>${summary.transaction_count} movimentação(ões) no período</span>
+          <button class="hero-month-btn" id="hero-next-month" type="button" aria-label="Próximo mês">
+            <i data-lucide="chevron-right"></i>
+          </button>
         </div>
       </div>
 
       <!-- Pair Stat Cards (Inspirados na Imagem: Income ↓ e Expense ↑) -->
       <div class="stat-pair-container">
-        <div class="fintech-stat-card income">
+        <button type="button" class="fintech-stat-card income dashboard-stat-link" id="dashboard-income-card" aria-label="Ver receitas no extrato">
           <div class="stat-card-circle-icon">
             <i data-lucide="arrow-down-left" style="width:22px;height:22px;"></i>
           </div>
           <div>
             <div class="stat-card-label">Receita</div>
-            <div class="stat-card-amount">${formatCurrency(summary.total_income)}</div>
+            <div class="stat-card-amount" data-sensitive data-value="${escapeHTML(formatCurrency(summary.total_income))}">${formatCurrency(summary.total_income)}</div>
           </div>
-        </div>
+          <i class="dashboard-card-arrow" data-lucide="arrow-up-right" aria-hidden="true"></i>
+        </button>
 
-        <div class="fintech-stat-card expense">
+        <button type="button" class="fintech-stat-card expense dashboard-stat-link" id="dashboard-expense-card" aria-label="Ver despesas no extrato">
           <div class="stat-card-circle-icon">
             <i data-lucide="arrow-up-right" style="width:22px;height:22px;"></i>
           </div>
           <div>
             <div class="stat-card-label">Despesa</div>
-            <div class="stat-card-amount">${formatCurrency(summary.total_expenses)}</div>
+            <div class="stat-card-amount" data-sensitive data-value="${escapeHTML(formatCurrency(summary.total_expenses))}">${formatCurrency(summary.total_expenses)}</div>
           </div>
-        </div>
+          <i class="dashboard-card-arrow" data-lucide="arrow-up-right" aria-hidden="true"></i>
+        </button>
       </div>
     `;
 
-    document.getElementById('hero-quick-add')?.addEventListener('click', () => App.openAddModal());
+    document.getElementById('dashboard-income-card')?.addEventListener('click', () => openTransactions('income'));
+    document.getElementById('dashboard-expense-card')?.addEventListener('click', () => openTransactions('expense'));
+    document.getElementById('hero-prev-month')?.addEventListener('click', () => changeMonth(-1));
+    document.getElementById('hero-next-month')?.addEventListener('click', () => changeMonth(1));
+    document.getElementById('hero-privacy-toggle')?.addEventListener('click', () => this.togglePrivacy());
+
+    const hero = grid.querySelector('.purple-hero-card');
+    if (hero) {
+      let touchStartX = 0;
+      hero.addEventListener('touchstart', event => {
+        touchStartX = event.changedTouches[0]?.clientX || 0;
+      }, { passive: true });
+      hero.addEventListener('touchend', event => {
+        if (event.target.closest('button')) return;
+        const delta = (event.changedTouches[0]?.clientX || 0) - touchStartX;
+        if (Math.abs(delta) > 70) changeMonth(delta < 0 ? 1 : -1);
+      }, { passive: true });
+    }
+
+    this.applyPrivacy();
+  },
+
+  applyPrivacy() {
+    const hidden = localStorage.getItem('dashboard-values-hidden') === 'true';
+    document.querySelectorAll('[data-sensitive]').forEach(element => {
+      element.textContent = hidden ? '••••••' : element.dataset.value;
+    });
+    const button = document.getElementById('hero-privacy-toggle');
+    if (button) {
+      button.setAttribute('aria-pressed', String(hidden));
+      button.setAttribute('aria-label', hidden ? 'Mostrar valores' : 'Ocultar valores');
+      button.innerHTML = `<i data-lucide="${hidden ? 'eye-off' : 'eye'}" aria-hidden="true"></i>`;
+    }
+    if (window.lucide) lucide.createIcons();
+  },
+
+  togglePrivacy() {
+    const hidden = localStorage.getItem('dashboard-values-hidden') !== 'true';
+    localStorage.setItem('dashboard-values-hidden', String(hidden));
+    if (window.haptic) window.haptic();
+    this.applyPrivacy();
   },
 
   _renderBarChart(evolution) {
     const canvas = document.getElementById('chart-bar');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    const labels = evolution.map(e => formatMonthLabel(e.month_key));
+    const isMobile = window.matchMedia('(max-width: 767px)').matches;
+    const visibleEvolution = isMobile ? evolution.slice(-6) : evolution;
+    const labels = visibleEvolution.map(e => formatMonthLabel(e.month_key));
     this._lastEvolution = evolution;
     const styles = getComputedStyle(document.body);
     const incomeColor = styles.getPropertyValue('--income').trim() || '#168866';
-    const primaryColor = styles.getPropertyValue('--primary').trim() || '#1167d8';
+    const expenseColor = styles.getPropertyValue('--expense').trim() || '#d64b65';
     const mutedColor = styles.getPropertyValue('--text-muted').trim() || '#718096';
     const gridColor = styles.getPropertyValue('--border').trim() || '#dfe5ee';
 
@@ -149,7 +221,7 @@ const Dashboard = {
         datasets: [
           {
             label: 'Receitas',
-            data: evolution.map(e => e.income),
+            data: visibleEvolution.map(e => e.income),
             backgroundColor: incomeColor,
             borderRadius: 8,
             barPercentage: 0.5,
@@ -157,8 +229,8 @@ const Dashboard = {
           },
           {
             label: 'Despesas',
-            data: evolution.map(e => e.expenses),
-            backgroundColor: primaryColor,
+            data: visibleEvolution.map(e => e.expenses),
+            backgroundColor: expenseColor,
             borderRadius: 8,
             barPercentage: 0.5,
             categoryPercentage: 0.6,
@@ -168,7 +240,9 @@ const Dashboard = {
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        animation: false,
+        animation: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+          ? false
+          : { duration: 520, easing: 'easeOutQuart' },
         plugins: {
           legend: {
             position: 'top',

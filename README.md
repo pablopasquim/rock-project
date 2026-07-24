@@ -168,6 +168,12 @@ As ilustrações do Rock Advisor ficam em `frontend/image/mascot/` no formato We
 com transparência. As animações são feitas em CSS e respeitam a preferência
 `prefers-reduced-motion` do sistema.
 
+A experiência mobile inclui saldo com modo de privacidade, troca de mês por gesto,
+atalhos de ação, cards que abrem o extrato já filtrado, skeletons de carregamento,
+transições curtas entre módulos e formulário de transação em bottom sheet. Os
+alvos interativos visíveis mantêm pelo menos 44 px e o layout é validado sem
+overflow horizontal em uma viewport de 430 × 932.
+
 O `firebase.json` serve os arquivos de `frontend/` pela CDN do Firebase Hosting e
 encaminha `/api/**` para o serviço `agent-finance` no Cloud Run em `us-central1`.
 Se o nome ou a região do serviço forem diferentes, ajuste esses dois campos antes

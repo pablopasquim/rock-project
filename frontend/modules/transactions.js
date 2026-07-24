@@ -10,7 +10,8 @@ const Transactions = {
   _activeCat: '',
 
   async render(container, monthKey) {
-    this._activeType = '';
+    this._activeType = State.pendingTransactionFilter || '';
+    State.pendingTransactionFilter = '';
     this._activeCat = '';
 
     container.innerHTML = `
@@ -29,9 +30,9 @@ const Transactions = {
 
         <!-- Filter Chips Type -->
         <div class="filter-row" id="filter-chips" aria-label="Filtrar por tipo">
-          <button class="topbar-btn filter-chip active" data-type="">Tudo</button>
-          <button class="topbar-btn filter-chip" data-type="expense">Despesas</button>
-          <button class="topbar-btn filter-chip" data-type="income">Receitas</button>
+          <button class="topbar-btn filter-chip ${this._activeType ? '' : 'active'}" data-type="">Tudo</button>
+          <button class="topbar-btn filter-chip ${this._activeType === 'expense' ? 'active' : ''}" data-type="expense">Despesas</button>
+          <button class="topbar-btn filter-chip ${this._activeType === 'income' ? 'active' : ''}" data-type="income">Receitas</button>
         </div>
 
         <!-- Filter Chips Category -->
@@ -57,7 +58,7 @@ const Transactions = {
     const txs = await API.get(`/api/transactions?month=${monthKey}&limit=200`);
     this._allTransactions = txs;
     this._buildCatChips(txs);
-    this._render(txs);
+    this._applyFilters();
   },
 
   _buildCatChips(txs) {
@@ -146,7 +147,7 @@ const Transactions = {
           </div>
           <div class="recent-tx-list">
             ${txs.map(tx => `
-              <div class="tx-item-compact" id="tx-${tx.id}">
+              <div class="tx-item-compact transaction-row-interactive" id="tx-${tx.id}" data-tx='${JSON.stringify(tx).replace(/'/g, "&#39;")}' role="button" tabindex="0" aria-label="Editar ${escapeHTML(tx.description)}">
                 <div class="tx-item-left">
                   <div class="tx-icon-circle ${tx.type}">
                     <i data-lucide="${this._catIcon[tx.category] || 'package'}" style="width:18px;height:18px;"></i>
@@ -174,7 +175,8 @@ const Transactions = {
       `).join('');
 
     container.querySelectorAll('.btn-edit-tx').forEach(btn => {
-      btn.onclick = () => {
+      btn.onclick = event => {
+        event.stopPropagation();
         try {
           const txData = JSON.parse(btn.dataset.tx);
           App.openEditModal(txData);
@@ -185,7 +187,30 @@ const Transactions = {
     });
 
     container.querySelectorAll('.btn-delete-tx').forEach(btn => {
-      btn.onclick = () => App.deleteTransaction(btn.dataset.txId);
+      btn.onclick = event => {
+        event.stopPropagation();
+        App.deleteTransaction(btn.dataset.txId);
+      };
+    });
+
+    container.querySelectorAll('.transaction-row-interactive').forEach(row => {
+      const openEditor = () => {
+        try {
+          if (window.haptic) window.haptic();
+          App.openEditModal(JSON.parse(row.dataset.tx));
+        } catch (error) {
+          console.error(error);
+        }
+      };
+      row.addEventListener('click', event => {
+        if (!event.target.closest('button')) openEditor();
+      });
+      row.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          openEditor();
+        }
+      });
     });
 
     if (window.lucide) lucide.createIcons();

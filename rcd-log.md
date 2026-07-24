@@ -22,6 +22,12 @@
   their panel, the Advisor collapses to one column, and the bottom navigation uses
   five explicit tracks. The install entry is always available on mobile when the
   app is not already running in standalone mode.
+- Evolved the dashboard into a mobile financial pulse: values can be hidden,
+  month changes work by controls or horizontal gesture, summary cards open a
+  pre-filtered statement, and the three primary tasks remain one tap away.
+  Skeletons replace blocking spinners, transaction rows open the editor directly,
+  and the bottom sheet keeps its actions reachable without forcing the keyboard
+  open. All visible touch targets pass the 44 px mobile minimum.
 
 Validation to observe after release:
 

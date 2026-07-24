@@ -6,9 +6,10 @@
 - Applied **Time-to-value**: “Nova transação” remains the primary action on desktop and becomes the central action in the mobile navigation.
 - Removed administrative UI friction: filters are horizontally scrollable chips on small screens, while the month selector stays available in the header.
 - Kept the scope personal and non-commercial: no pricing, acquisition, paywall, or sales patterns were introduced.
-- Added the Rock Advisor mascot only at moments that benefit from guidance: login,
-  Advisor welcome and empty states. Motion remains subtle, CSS-only and disabled
-  when the operating system requests reduced motion.
+- Added the Rock Advisor illustration only at moments that benefit from guidance:
+  Advisor welcome and empty states. It was intentionally removed from the login
+  to preserve alignment and visual focus. Motion remains subtle, CSS-only and
+  disabled when the operating system requests reduced motion.
 
 Validation to observe after release:
 

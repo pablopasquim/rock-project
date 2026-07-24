@@ -154,7 +154,7 @@ A suíte de testes cobre autenticação, isolamento de dados do household, sanit
 ```
 
 ### Resultado dos Testes:
-- **Testes atuais:** 79 passavam (100% sucesso)
+- **Testes atuais:** 80 passavam (100% sucesso)
 
 ---
 

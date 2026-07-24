@@ -34,6 +34,9 @@ const API = {
       if (window.Auth) window.Auth.logout();
       throw new Error("Acesso não autorizado para este e-mail.");
     }
+    if (res.status === 503) {
+      throw new Error("Serviço de autenticação temporariamente indisponível. Tente novamente.");
+    }
     if (!res.ok) {
       throw new Error(`Erro na requisição (${res.status})`);
     }

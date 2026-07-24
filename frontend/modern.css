@@ -183,19 +183,6 @@ select {
   border-radius: 50%;
 }
 
-.login-mascot {
-  position: absolute;
-  z-index: 2;
-  right: clamp(16px, 3vw, 38px);
-  bottom: 82px;
-  width: clamp(128px, 16vw, 190px);
-  height: auto;
-  pointer-events: none;
-  filter: drop-shadow(0 22px 26px rgba(1, 17, 38, 0.28));
-  transform-origin: 50% 100%;
-  animation: mascotHello 4.8s ease-in-out infinite;
-}
-
 @keyframes mascotHello {
   0%, 100% { transform: translateY(0) rotate(-1deg); }
   50% { transform: translateY(-7px) rotate(1deg); }
@@ -248,7 +235,6 @@ select {
 .login-proof {
   position: relative;
   z-index: 1;
-  width: calc(100% - clamp(102px, 12vw, 142px));
   margin-top: 42px;
   padding: 18px 20px;
   border: 1px solid rgba(255, 255, 255, 0.14);
@@ -1137,11 +1123,6 @@ select {
     height: 34px;
   }
 
-  .login-mascot {
-    right: 18px;
-    bottom: 46px;
-    width: clamp(150px, 16vw, 190px);
-  }
 }
 
 @media (max-width: 767px) {
@@ -1183,13 +1164,6 @@ select {
   .login-logo-img {
     width: 126px;
     margin: -12px 0 12px;
-  }
-
-  .login-mascot {
-    right: 10px;
-    bottom: 10px;
-    width: 112px;
-    opacity: 0.94;
   }
 
   .login-brand-content h1 {

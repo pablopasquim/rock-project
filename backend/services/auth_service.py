@@ -112,6 +112,13 @@ def verify_firebase_token(token_str: str) -> Dict[str, Any]:
     try:
         decoded = auth.verify_id_token(token_str)
         return decoded
+    except auth.CertificateFetchError as e:
+        logger.error("Falha de rede ao buscar certificados públicos do Firebase: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Serviço de autenticação temporariamente indisponível.",
+            headers={"Retry-After": "5"},
+        ) from e
     except Exception as e:
         logger.debug(f"Falha ao verificar Firebase ID token: {e}")
         raise HTTPException(

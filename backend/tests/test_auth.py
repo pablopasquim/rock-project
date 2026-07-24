@@ -4,9 +4,11 @@ Testes de Autenticação, Autorização, CSP e Startup Guards
 import os
 import pytest
 from unittest.mock import patch, MagicMock
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from backend.main import app
 from backend.services.auth_service import validate_auth_startup, get_current_user, verify_firebase_token
+import backend.services.auth_service as auth_service
 
 
 VALID_PROD_ENV = {
@@ -79,6 +81,21 @@ class TestAuthEndpointsAndCSP:
                 headers = {"Authorization": "Bearer valid-token"}
                 resp = auth_client.get("/api/transactions", headers=headers)
                 assert resp.status_code == 200
+
+    def test_firebase_certificate_failure_returns_503(self):
+        """Falha ao buscar certificados é indisponibilidade, não sessão inválida."""
+        class MockCertificateFetchError(Exception):
+            pass
+
+        certificate_error = MockCertificateFetchError("certificate endpoint unavailable")
+        with patch("backend.services.auth_service._init_firebase_admin"), \
+             patch.object(auth_service.auth, "CertificateFetchError", MockCertificateFetchError), \
+             patch.object(auth_service.auth, "verify_id_token", side_effect=certificate_error):
+            with pytest.raises(HTTPException) as exc_info:
+                verify_firebase_token("valid-looking-token")
+
+        assert exc_info.value.status_code == 503
+        assert exc_info.value.headers == {"Retry-After": "5"}
 
 
 class TestStartupGuards:

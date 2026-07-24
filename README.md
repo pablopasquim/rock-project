@@ -172,7 +172,8 @@ A experiência mobile inclui saldo com modo de privacidade, troca de mês por ge
 atalhos de ação, cards que abrem o extrato já filtrado, skeletons de carregamento,
 transições curtas entre módulos e formulário de transação em bottom sheet. Os
 alvos interativos visíveis mantêm pelo menos 44 px e o layout é validado sem
-overflow horizontal em uma viewport de 430 × 932.
+overflow horizontal em uma viewport de 430 × 932. O avatar no cabeçalho abre o
+perfil mobile com e-mail conectado, instalação, tema e logout confirmado.
 
 O `firebase.json` serve os arquivos de `frontend/` pela CDN do Firebase Hosting e
 encaminha `/api/**` para o serviço `agent-finance` no Cloud Run em `us-central1`.

@@ -5,6 +5,7 @@
   const bannerButton = document.getElementById('pwa-install-banner-btn');
   const bannerDismiss = document.getElementById('pwa-install-banner-dismiss');
   const bannerDescription = document.getElementById('pwa-install-banner-description');
+  const profileInstallAction = document.getElementById('profile-install-action');
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches
     || window.navigator.standalone === true;
   const isMobile = window.matchMedia('(max-width: 767px)').matches;
@@ -22,6 +23,7 @@
   const hideInstallUi = () => {
     if (installButton) installButton.hidden = true;
     if (installBanner) installBanner.hidden = true;
+    if (profileInstallAction) profileInstallAction.hidden = true;
   };
 
   const showInstallUi = ({ fallback = false } = {}) => {
@@ -29,6 +31,7 @@
     fallbackInstructions = fallback;
     if (installButton) installButton.hidden = false;
     if (installBanner && isMobile && !wasDismissed()) installBanner.hidden = false;
+    if (profileInstallAction) profileInstallAction.hidden = false;
 
     if (bannerButton) bannerButton.textContent = fallback ? 'Como instalar' : 'Instalar';
     if (bannerDescription) {
@@ -46,6 +49,9 @@
   });
 
   const requestInstall = async () => {
+    if (window.App && typeof window.App.closeProfileSheet === 'function') {
+      window.App.closeProfileSheet();
+    }
     if (!installPrompt || fallbackInstructions) {
       const message = isIos
         ? 'No Safari, toque em Compartilhar e depois em Adicionar à Tela de Início.'
@@ -67,6 +73,7 @@
 
   installButton?.addEventListener('click', requestInstall);
   bannerButton?.addEventListener('click', requestInstall);
+  profileInstallAction?.addEventListener('click', requestInstall);
 
   // iOS does not expose beforeinstallprompt. Keep an explicit install entry
   // visible so the user can always reach the browser-specific instructions.

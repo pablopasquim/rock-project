@@ -28,6 +28,10 @@
   Skeletons replace blocking spinners, transaction rows open the editor directly,
   and the bottom sheet keeps its actions reachable without forcing the keyboard
   open. All visible touch targets pass the 44 px mobile minimum.
+- Consolidated account controls behind a mobile profile sheet so logout is no
+  longer trapped in the desktop sidebar. The sheet identifies the active account,
+  groups install and theme controls, and requires an explicit second step before
+  signing out.
 
 Validation to observe after release:
 

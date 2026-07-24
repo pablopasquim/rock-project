@@ -145,21 +145,26 @@ const Auth = {
     if (badge) badge.style.display = 'inline-flex';
     const emailEl = document.getElementById('user-email-display');
     if (emailEl) emailEl.textContent = 'dev@rockfinance.local (Modo Dev)';
+    const mobileEmailEl = document.getElementById('mobile-user-email-display');
+    if (mobileEmailEl) mobileEmailEl.textContent = 'dev@rockfinance.local';
   },
 
   _updateUserUI() {
-    const emailEl = document.getElementById('user-email-display');
-    if (emailEl && this.user) {
-      emailEl.textContent = this.user.email;
+    if (this.user) {
+      document.querySelectorAll('#user-email-display, #mobile-user-email-display').forEach(emailEl => {
+        emailEl.textContent = this.user.email;
+      });
     }
-    const avatarEl = document.getElementById('user-avatar-initials');
-    if (avatarEl && this.user?.email) {
+    if (this.user?.email) {
       const localPart = this.user.email.split('@')[0];
       const pieces = localPart.split(/[._-]+/).filter(Boolean);
-      avatarEl.textContent = pieces
+      const initials = pieces
         .slice(0, 2)
         .map(piece => piece.charAt(0).toUpperCase())
         .join('') || 'RF';
+      document.querySelectorAll('#user-avatar-initials, #mobile-user-avatar-initials, #profile-sheet-avatar').forEach(avatarEl => {
+        avatarEl.textContent = initials;
+      });
     }
   },
 

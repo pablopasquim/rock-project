@@ -24,7 +24,7 @@
   <!-- Styles -->
   <script src="/theme-init.js"></script>
   <link rel="stylesheet" href="/index.css" />
-  <link rel="stylesheet" href="/modern.css?v=20260724-9" />
+  <link rel="stylesheet" href="/modern.css?v=20260724-10" />
 
   <!-- Dependências Externas -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
@@ -179,6 +179,10 @@
             <span>Instalar</span>
           </button>
 
+          <button class="mobile-profile-btn" id="mobile-profile-btn" type="button" aria-label="Abrir perfil e configurações" aria-haspopup="dialog" aria-controls="mobile-profile-sheet">
+            <span id="mobile-user-avatar-initials" aria-hidden="true">RF</span>
+          </button>
+
           <button class="btn-primary-cockpit" id="btn-add-transaction">
             <i data-lucide="plus" style="width:18px;height:18px;"></i>
             <span>Nova Transação</span>
@@ -189,6 +193,65 @@
       <main class="app-content" id="page-content" tabindex="-1">
         <div class="loader"><div class="spinner"></div></div>
       </main>
+    </div>
+
+    <div class="profile-sheet-overlay" id="mobile-profile-sheet" role="dialog" aria-modal="true" aria-labelledby="profile-sheet-title" hidden>
+      <section class="profile-sheet-panel">
+        <div class="profile-sheet-handle" aria-hidden="true"></div>
+        <header class="profile-sheet-header">
+          <div class="profile-sheet-identity">
+            <div class="profile-sheet-avatar" id="profile-sheet-avatar" aria-hidden="true">RF</div>
+            <div>
+              <h2 id="profile-sheet-title">Seu perfil</h2>
+              <p id="mobile-user-email-display">usuario@email.com</p>
+            </div>
+          </div>
+          <button class="profile-sheet-close" id="profile-sheet-close" type="button" aria-label="Fechar perfil">
+            <i data-lucide="x"></i>
+          </button>
+        </header>
+
+        <div class="profile-sheet-actions" id="profile-sheet-actions">
+          <button class="profile-sheet-action" id="profile-install-action" type="button" hidden>
+            <span class="profile-sheet-action-icon"><i data-lucide="download"></i></span>
+            <span>
+              <strong>Instalar aplicativo</strong>
+              <small>Acessar pela tela inicial</small>
+            </span>
+            <i data-lucide="chevron-right" aria-hidden="true"></i>
+          </button>
+
+          <button class="profile-sheet-action" id="profile-theme-action" type="button">
+            <span class="profile-sheet-action-icon"><i data-lucide="moon" id="profile-theme-icon"></i></span>
+            <span>
+              <strong id="profile-theme-label">Usar modo escuro</strong>
+              <small>Alternar aparência do aplicativo</small>
+            </span>
+            <i data-lucide="chevron-right" aria-hidden="true"></i>
+          </button>
+
+          <button class="profile-sheet-action danger" id="profile-logout-action" type="button">
+            <span class="profile-sheet-action-icon"><i data-lucide="log-out"></i></span>
+            <span>
+              <strong>Sair da conta</strong>
+              <small>Encerrar esta sessão com segurança</small>
+            </span>
+            <i data-lucide="chevron-right" aria-hidden="true"></i>
+          </button>
+        </div>
+
+        <div class="profile-logout-confirm" id="profile-logout-confirm" hidden>
+          <div class="profile-logout-confirm-icon" aria-hidden="true">
+            <i data-lucide="log-out"></i>
+          </div>
+          <h3>Deseja realmente sair?</h3>
+          <p>Será necessário informar e-mail e senha para acessar novamente.</p>
+          <div class="profile-logout-confirm-actions">
+            <button type="button" id="profile-logout-cancel">Continuar conectado</button>
+            <button type="button" class="danger" id="profile-logout-confirm-btn">Sair da conta</button>
+          </div>
+        </div>
+      </section>
     </div>
 
     <aside class="pwa-install-banner" id="pwa-install-banner" aria-label="Instalar Rock Finance" hidden>
@@ -309,12 +372,12 @@
 
 
   <!-- Scripts -->
-  <script src="/auth.js?v=20260724-6"></script>
+  <script src="/auth.js?v=20260724-7"></script>
   <script src="/modules/dashboard.js?v=20260724-7"></script>
   <script src="/modules/transactions.js?v=20260724-7"></script>
   <script src="/modules/history.js?v=20260724-6"></script>
   <script src="/modules/chat.js?v=20260724-6"></script>
-  <script src="/app.js?v=20260724-7"></script>
-  <script src="/pwa.js?v=20260724-7"></script>
+  <script src="/app.js?v=20260724-8"></script>
+  <script src="/pwa.js?v=20260724-8"></script>
 </body>
 </html>

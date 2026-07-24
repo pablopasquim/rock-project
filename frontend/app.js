@@ -89,6 +89,7 @@ const State = {
   selectedCategory: '',
   categories: { expense: [], income: [] },
   lastFocusedElement: null,
+  profileLastFocusedElement: null,
 };
 
 function haptic(duration = 10) {
@@ -348,6 +349,69 @@ const App = {
     }
   },
 
+  syncProfileTheme() {
+    const isDark = document.body.getAttribute('data-theme') === 'dark';
+    const label = document.getElementById('profile-theme-label');
+    const icon = document.getElementById('profile-theme-icon');
+    if (label) label.textContent = isDark ? 'Usar modo claro' : 'Usar modo escuro';
+    if (icon) icon.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
+    if (window.lucide) lucide.createIcons();
+  },
+
+  openProfileSheet() {
+    const sheet = document.getElementById('mobile-profile-sheet');
+    if (!sheet) return;
+    State.profileLastFocusedElement = document.activeElement;
+    document.getElementById('profile-sheet-actions').hidden = false;
+    document.getElementById('profile-logout-confirm').hidden = true;
+    sheet.hidden = false;
+    document.body.classList.add('modal-open');
+    document.querySelector('.main-wrapper')?.setAttribute('inert', '');
+    document.querySelector('.mobile-nav')?.setAttribute('inert', '');
+    App.syncProfileTheme();
+    requestAnimationFrame(() => document.getElementById('profile-sheet-close')?.focus());
+  },
+
+  closeProfileSheet() {
+    const sheet = document.getElementById('mobile-profile-sheet');
+    if (!sheet || sheet.hidden) return;
+    sheet.hidden = true;
+    document.body.classList.remove('modal-open');
+    document.querySelector('.main-wrapper')?.removeAttribute('inert');
+    document.querySelector('.mobile-nav')?.removeAttribute('inert');
+    if (State.profileLastFocusedElement && typeof State.profileLastFocusedElement.focus === 'function') {
+      State.profileLastFocusedElement.focus();
+    }
+  },
+
+  showLogoutConfirmation() {
+    document.getElementById('profile-sheet-actions').hidden = true;
+    const confirmation = document.getElementById('profile-logout-confirm');
+    confirmation.hidden = false;
+    if (window.haptic) window.haptic();
+    requestAnimationFrame(() => document.getElementById('profile-logout-cancel')?.focus());
+  },
+
+  hideLogoutConfirmation() {
+    document.getElementById('profile-sheet-actions').hidden = false;
+    document.getElementById('profile-logout-confirm').hidden = true;
+    requestAnimationFrame(() => document.getElementById('profile-logout-action')?.focus());
+  },
+
+  async confirmLogout() {
+    const button = document.getElementById('profile-logout-confirm-btn');
+    button.disabled = true;
+    button.textContent = 'Saindo...';
+    try {
+      if (window.haptic) window.haptic(18);
+      if (window.Auth) await window.Auth.logout();
+      App.closeProfileSheet();
+    } finally {
+      button.disabled = false;
+      button.textContent = 'Sair da conta';
+    }
+  },
+
   setType(type) {
     State.selectedType = type;
     document.getElementById('btn-type-expense').className = `type-btn ${type === 'expense' ? 'active expense' : ''}`;
@@ -597,6 +661,49 @@ document.addEventListener('DOMContentLoaded', () => {
   const mobileFab = document.getElementById('btn-mobile-fab');
   if (mobileFab) mobileFab.addEventListener('click', () => App.openAddModal());
 
+  document.getElementById('mobile-profile-btn')?.addEventListener('click', () => App.openProfileSheet());
+  document.getElementById('profile-sheet-close')?.addEventListener('click', () => App.closeProfileSheet());
+  document.getElementById('profile-theme-action')?.addEventListener('click', () => {
+    document.getElementById('theme-toggle')?.click();
+    App.syncProfileTheme();
+  });
+  document.getElementById('profile-logout-action')?.addEventListener('click', () => App.showLogoutConfirmation());
+  document.getElementById('profile-logout-cancel')?.addEventListener('click', () => App.hideLogoutConfirmation());
+  document.getElementById('profile-logout-confirm-btn')?.addEventListener('click', () => App.confirmLogout());
+
+  const profileSheet = document.getElementById('mobile-profile-sheet');
+  if (profileSheet) {
+    profileSheet.addEventListener('click', event => {
+      if (event.target === profileSheet) App.closeProfileSheet();
+    });
+
+    profileSheet.addEventListener('keydown', event => {
+      if (event.key !== 'Tab') return;
+      const focusable = [...profileSheet.querySelectorAll('button:not([hidden]):not([disabled])')]
+        .filter(element => element.offsetParent !== null);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    });
+
+    const profileHeader = profileSheet.querySelector('.profile-sheet-header');
+    let profileTouchStartY = 0;
+    profileHeader?.addEventListener('touchstart', event => {
+      profileTouchStartY = event.changedTouches[0]?.clientY || 0;
+    }, { passive: true });
+    profileHeader?.addEventListener('touchend', event => {
+      const touchEndY = event.changedTouches[0]?.clientY || 0;
+      if (touchEndY - profileTouchStartY > 72) App.closeProfileSheet();
+    }, { passive: true });
+  }
+
   // Modal type buttons & form
   document.getElementById('btn-type-expense')?.addEventListener('click', () => App.setType('expense'));
   document.getElementById('btn-type-income')?.addEventListener('click', () => App.setType('income'));
@@ -631,6 +738,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
+      const profileSheet = document.getElementById('mobile-profile-sheet');
+      if (profileSheet && !profileSheet.hidden) {
+        App.closeProfileSheet();
+        return;
+      }
       const modal = document.getElementById('transaction-modal');
       if (modal && modal.style.display === 'flex') {
         App.closeModal();

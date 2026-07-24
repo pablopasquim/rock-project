@@ -226,8 +226,6 @@ const History = {
     if (nm === 0) { nm = 12; ny--; }
     this._currentMonth = `${ny}-${String(nm).padStart(2,'0')}`;
     State.currentMonth = this._currentMonth;
-    const gs = document.getElementById('global-month-select');
-    if (gs) gs.value = this._currentMonth;
     const display = document.getElementById('history-month-display');
     if (display) display.textContent = formatMonthLabel(this._currentMonth);
     this._loadMonth(this._currentMonth);
@@ -239,8 +237,6 @@ const History = {
     if (nm === 13) { nm = 1; ny++; }
     this._currentMonth = `${ny}-${String(nm).padStart(2,'0')}`;
     State.currentMonth = this._currentMonth;
-    const gs = document.getElementById('global-month-select');
-    if (gs) gs.value = this._currentMonth;
     const display = document.getElementById('history-month-display');
     if (display) display.textContent = formatMonthLabel(this._currentMonth);
     this._loadMonth(this._currentMonth);

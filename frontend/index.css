@@ -111,12 +111,6 @@
   color-scheme: dark;
 }
 
-/* Dark mode: month dropdown options */
-[data-theme="dark"] .month-selector-wrapper select option {
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-}
-
 /* Dark mode: topbar */
 [data-theme="dark"] .topbar {
   background-color: var(--bg-surface);
@@ -412,48 +406,6 @@ input, select, textarea {
   align-items: center;
   gap: 16px;
 }
-
-.month-selector-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--primary);
-  border: none;
-  padding: 9px 16px;
-  border-radius: var(--r-sm);
-  cursor: pointer;
-  box-shadow: var(--shadow-brand);
-  transition: background var(--dur-hover) var(--ease-out), box-shadow var(--dur-hover) var(--ease-out);
-}
-
-.month-selector-wrapper:hover {
-  background: var(--primary-dark);
-}
-
-.month-selector-wrapper i {
-  color: rgba(255,255,255,0.85);
-  flex-shrink: 0;
-}
-
-.month-selector-wrapper select {
-  border: none;
-  background: transparent;
-  font-weight: 700;
-  font-size: 0.92rem;
-  color: #ffffff;
-  cursor: pointer;
-  outline: none;
-  appearance: none;
-  -webkit-appearance: none;
-}
-
-.month-selector-wrapper select option {
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  font-weight: 600;
-}
-
-
 
 .topbar-btn {
   display: flex;

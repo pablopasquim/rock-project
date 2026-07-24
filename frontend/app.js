@@ -139,39 +139,6 @@ function formatDate(dateStr) {
 }
 
 // ─── Month Selector ─────────────────────────────────────────────────────────
-async function initMonthSelector() {
-  const select = document.getElementById('global-month-select');
-  if (!select) return;
-  select.innerHTML = '';
-
-  let months = [];
-  try {
-    const data = await API.get('/api/history/months');
-    months = data.months || [];
-  } catch (e) {
-    console.warn("Failed to load available months", e);
-  }
-
-  if (!months.includes(State.currentMonth)) {
-    months.push(State.currentMonth);
-  }
-
-  months.sort((a, b) => b.localeCompare(a));
-
-  for (const key of months) {
-    const opt = document.createElement('option');
-    opt.value = key;
-    opt.textContent = formatMonthLabel(key);
-    if (key === State.currentMonth) opt.selected = true;
-    select.appendChild(opt);
-  }
-
-  select.onchange = () => {
-    State.currentMonth = select.value;
-    renderPage(State.currentPage);
-  };
-}
-
 // ─── Router ─────────────────────────────────────────────────────────────────
 const PAGE_META = {
   dashboard: { title: 'Início', subtitle: 'Visão geral do seu mês' },
@@ -206,17 +173,6 @@ function changeMonth(step) {
   const [year, month] = State.currentMonth.split('-').map(Number);
   const next = new Date(year, month - 1 + step, 1);
   State.currentMonth = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`;
-
-  const select = document.getElementById('global-month-select');
-  if (select) {
-    if (![...select.options].some(option => option.value === State.currentMonth)) {
-      const option = document.createElement('option');
-      option.value = State.currentMonth;
-      option.textContent = formatMonthLabel(State.currentMonth);
-      select.appendChild(option);
-    }
-    select.value = State.currentMonth;
-  }
 
   haptic();
   renderPage(State.currentPage);
@@ -566,7 +522,6 @@ window.onAppInit = async function () {
   } catch (e) {
     console.warn('Could not load categories', e);
   }
-  await initMonthSelector();
   await renderPage('dashboard');
 };
 

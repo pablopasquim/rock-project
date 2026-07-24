@@ -32,6 +32,10 @@
   longer trapped in the desktop sidebar. The sheet identifies the active account,
   groups install and theme controls, and requires an explicit second step before
   signing out.
+- Removed the duplicate global month dropdown from the top bar. Month navigation
+  now has one clear source on the balance card and another inside History, which
+  also removes an unnecessary startup request. Added a compact PWA short name so
+  mobile launchers have a reliable label below the installed icon.
 
 Validation to observe after release:
 

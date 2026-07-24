@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="Rock Finance — suas finanças pessoais organizadas com inteligência artificial." />
+  <meta name="application-name" content="Rock Finance" />
   <meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#0b101b" media="(prefers-color-scheme: dark)" />
   <meta name="mobile-web-app-capable" content="yes" />
@@ -17,14 +18,14 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 
   <!-- PWA -->
-  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="manifest" href="/manifest.webmanifest?v=20260724-2" />
   <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="/icons/icon-192.png" />
 
   <!-- Styles -->
   <script src="/theme-init.js"></script>
-  <link rel="stylesheet" href="/index.css" />
-  <link rel="stylesheet" href="/modern.css?v=20260724-10" />
+  <link rel="stylesheet" href="/index.css?v=20260724-2" />
+  <link rel="stylesheet" href="/modern.css?v=20260724-11" />
 
   <!-- Dependências Externas -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
@@ -165,11 +166,6 @@
         </div>
 
         <div class="topbar-actions">
-          <div class="month-selector-wrapper">
-            <i data-lucide="calendar" style="width:16px;height:16px;color:var(--text-muted);"></i>
-            <select id="global-month-select" aria-label="Selecionar mês"></select>
-          </div>
-
           <button class="topbar-btn" id="theme-toggle" aria-label="Alternar Tema" title="Alternar Tema">
             <i data-lucide="moon" style="width:18px;height:18px;"></i>
           </button>
@@ -375,9 +371,9 @@
   <script src="/auth.js?v=20260724-7"></script>
   <script src="/modules/dashboard.js?v=20260724-7"></script>
   <script src="/modules/transactions.js?v=20260724-7"></script>
-  <script src="/modules/history.js?v=20260724-6"></script>
+  <script src="/modules/history.js?v=20260724-7"></script>
   <script src="/modules/chat.js?v=20260724-6"></script>
-  <script src="/app.js?v=20260724-8"></script>
+  <script src="/app.js?v=20260724-9"></script>
   <script src="/pwa.js?v=20260724-8"></script>
 </body>
 </html>

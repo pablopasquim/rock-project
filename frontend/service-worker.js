@@ -1,16 +1,16 @@
-const CACHE_VERSION = 'rock-finance-shell-v11';
+const CACHE_VERSION = 'rock-finance-shell-v12';
 const APP_SHELL = [
   '/',
   '/index.html',
-  '/index.css',
-  '/modern.css?v=20260724-10',
+  '/index.css?v=20260724-2',
+  '/modern.css?v=20260724-11',
   '/theme-init.js',
   '/auth.js?v=20260724-7',
-  '/app.js?v=20260724-8',
+  '/app.js?v=20260724-9',
   '/pwa.js?v=20260724-8',
   '/modules/dashboard.js?v=20260724-7',
   '/modules/transactions.js?v=20260724-7',
-  '/modules/history.js?v=20260724-6',
+  '/modules/history.js?v=20260724-7',
   '/modules/chat.js?v=20260724-6',
   '/image/logo2.png',
   '/image/mascot/advisor-welcome.webp',
@@ -18,7 +18,7 @@ const APP_SHELL = [
   '/icons/icon.svg',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
-  '/manifest.webmanifest',
+  '/manifest.webmanifest?v=20260724-2',
 ];
 
 self.addEventListener('install', (event) => {

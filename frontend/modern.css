@@ -616,29 +616,6 @@ select {
   box-shadow: var(--shadow-brand);
 }
 
-.month-selector-wrapper {
-  min-height: 42px;
-  padding: 8px 13px;
-  border: 1px solid var(--border);
-  background: var(--bg-surface);
-  box-shadow: var(--shadow-sm);
-}
-
-.month-selector-wrapper:hover {
-  border-color: var(--border-hover);
-  background: var(--bg-elevated);
-}
-
-.month-selector-wrapper i,
-.month-selector-wrapper select {
-  color: var(--text-secondary);
-}
-
-.month-selector-wrapper select {
-  max-width: 94px;
-  font-size: 0.84rem;
-}
-
 .install-app-btn {
   width: auto;
   gap: 7px;
@@ -1352,21 +1329,6 @@ select {
     height: 44px;
     min-height: 44px;
     border-radius: 12px;
-  }
-
-  .month-selector-wrapper {
-    width: 44px;
-    min-height: 44px;
-    padding: 0;
-    justify-content: center;
-    border-radius: 12px;
-  }
-
-  .month-selector-wrapper select {
-    position: absolute;
-    width: 44px;
-    height: 44px;
-    opacity: 0;
   }
 
   #btn-add-transaction {

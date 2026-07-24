@@ -198,6 +198,9 @@ Após o deploy:
 4. No celular, use o botão **Instalar** no cabeçalho ou no banner mobile. Quando
    o navegador não oferece o prompt nativo, o app mostra as instruções para usar
    **Instalar app** ou **Adicionar à tela inicial** pelo menu do navegador.
+5. O nome curto exibido pelo launcher é **Rock**. Depois de mudanças no manifesto,
+   remova o atalho/PWA antigo e instale novamente; o nome definido na instalação
+   anterior pode permanecer no cache do sistema.
 
 ---
 

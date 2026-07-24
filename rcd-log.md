@@ -10,6 +10,9 @@
   Advisor welcome and empty states. It was intentionally removed from the login
   to preserve alignment and visual focus. Motion remains subtle, CSS-only and
   disabled when the operating system requests reduced motion.
+- Added explicit authentication feedback: an interactive login briefly transitions
+  to a confirmed state before the dashboard opens. Restored sessions skip this
+  ceremony to keep returning access immediate.
 
 Validation to observe after release:
 

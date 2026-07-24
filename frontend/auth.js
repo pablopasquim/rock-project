@@ -5,6 +5,7 @@ const Auth = {
   idToken: null,
   isDevBypass: false,
   firebaseAuth: null,
+  _pendingInteractiveLogin: false,
 
   async init() {
     try {
@@ -45,7 +46,15 @@ const Auth = {
           this.user = user;
           this.idToken = await user.getIdToken();
           this._updateUserUI();
+          const shouldCelebrateLogin = this._pendingInteractiveLogin;
+          this._pendingInteractiveLogin = false;
+          if (shouldCelebrateLogin) {
+            await this._showLoginSuccess();
+          }
           this._showMainApp();
+          if (shouldCelebrateLogin && typeof window.toast === 'function') {
+            window.toast('Login realizado com sucesso. Bem-vindo!', 'success');
+          }
         } else {
           this.user = null;
           this.idToken = null;
@@ -67,10 +76,16 @@ const Auth = {
     if (!this.firebaseAuth || !this._signInFunc) {
       throw new Error("Sistema de autenticação não inicializado.");
     }
-    const userCredential = await this._signInFunc(this.firebaseAuth, email, password);
-    this.user = userCredential.user;
-    this.idToken = await this.user.getIdToken();
-    return this.user;
+    this._pendingInteractiveLogin = true;
+    try {
+      const userCredential = await this._signInFunc(this.firebaseAuth, email, password);
+      this.user = userCredential.user;
+      this.idToken = await this.user.getIdToken();
+      return this.user;
+    } catch (error) {
+      this._pendingInteractiveLogin = false;
+      throw error;
+    }
   },
 
   async logout() {
@@ -106,8 +121,23 @@ const Auth = {
   _showLoginScreen() {
     const loginScreen = document.getElementById('login-screen');
     const mainApp = document.getElementById('app');
+    const formPanel = document.querySelector('.login-form-panel');
+    const successState = document.getElementById('login-success-state');
+    formPanel?.classList.remove('login-success-active');
+    successState?.setAttribute('aria-hidden', 'true');
     if (loginScreen) loginScreen.style.display = 'flex';
     if (mainApp) mainApp.style.display = 'none';
+  },
+
+  async _showLoginSuccess() {
+    const formPanel = document.querySelector('.login-form-panel');
+    const successState = document.getElementById('login-success-state');
+    if (!formPanel || !successState) return;
+
+    successState.setAttribute('aria-hidden', 'false');
+    formPanel.classList.add('login-success-active');
+    if (window.lucide) window.lucide.createIcons();
+    await new Promise(resolve => setTimeout(resolve, 900));
   },
 
   _showDevBypassBadge() {

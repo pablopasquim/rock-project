@@ -107,6 +107,8 @@ function toast(message, type = 'info', duration = 3500) {
   }, duration);
 }
 
+window.toast = toast;
+
 // ─── Month Utilities ────────────────────────────────────────────────────────
 function formatMonthLabel(monthKey) {
   if (!monthKey || typeof monthKey !== 'string') return '';
@@ -453,9 +455,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const password = document.getElementById('login-password').value;
       const btn = document.getElementById('login-btn');
       const errEl = document.getElementById('login-error-msg');
+      const originalButtonContent = btn.innerHTML;
 
       if (errEl) errEl.style.display = 'none';
       btn.disabled = true;
+      btn.setAttribute('aria-busy', 'true');
+      btn.innerHTML = '<span class="login-btn-spinner" aria-hidden="true"></span><span>Verificando acesso...</span>';
 
       try {
         await window.Auth.login(email, password);
@@ -480,6 +485,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       } finally {
         btn.disabled = false;
+        btn.removeAttribute('aria-busy');
+        btn.innerHTML = originalButtonContent;
+        if (window.lucide) window.lucide.createIcons();
       }
     });
   }

@@ -27,9 +27,9 @@ from backend.routers import transactions, dashboard, history, chat, config
 async def lifespan(app: FastAPI):
     # Validação rigorosa no startup (dev bypass guard, allowlist, configs do Firebase)
     validate_auth_startup()
-    print("🚀 Rock Finance API iniciando...")
+    print("Rock Finance API iniciando...")
     yield
-    print("👋 Rock Finance API encerrando...")
+    print("Rock Finance API encerrando...")
 
 
 # Oculta Swagger/Docs em produção

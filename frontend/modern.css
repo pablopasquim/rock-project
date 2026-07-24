@@ -1348,7 +1348,7 @@ select {
 
   .topbar-actions > .topbar-btn,
   #theme-toggle {
-    width: 44px;
+    width: 46px;
     height: 44px;
     min-height: 44px;
     border-radius: 12px;
@@ -1670,14 +1670,27 @@ select {
   }
 
   .history-toolbar #btn-export-csv {
+    display: inline-flex;
+    flex: 0 0 46px;
+    align-items: center;
+    justify-content: center;
     width: 44px;
+    height: 46px;
+    min-width: 46px;
+    min-height: 46px;
     padding: 0;
+    gap: 0;
+    overflow: hidden;
+    line-height: 1;
     font-size: 0 !important;
   }
 
   .history-toolbar #btn-export-csv svg {
+    display: block;
+    flex: 0 0 auto;
     width: 17px !important;
     height: 17px !important;
+    margin: 0;
   }
 
   .summary-grid {

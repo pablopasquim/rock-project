@@ -1,6 +1,7 @@
 // ─── Dashboard Module (Vibrant Purple Fintech Edition) ──────────────────────
 const Dashboard = {
   charts: {},
+  _lastEvolution: [],
 
   _catIcon: {
     alimentacao: 'utensils', transporte: 'car', moradia: 'home',
@@ -131,6 +132,12 @@ const Dashboard = {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const labels = evolution.map(e => formatMonthLabel(e.month_key));
+    this._lastEvolution = evolution;
+    const styles = getComputedStyle(document.body);
+    const incomeColor = styles.getPropertyValue('--income').trim() || '#168866';
+    const primaryColor = styles.getPropertyValue('--primary').trim() || '#1167d8';
+    const mutedColor = styles.getPropertyValue('--text-muted').trim() || '#718096';
+    const gridColor = styles.getPropertyValue('--border').trim() || '#dfe5ee';
 
     const existing = Chart.getChart(canvas);
     if (existing) existing.destroy();
@@ -143,7 +150,7 @@ const Dashboard = {
           {
             label: 'Receitas',
             data: evolution.map(e => e.income),
-            backgroundColor: '#10b981',
+            backgroundColor: incomeColor,
             borderRadius: 8,
             barPercentage: 0.5,
             categoryPercentage: 0.6,
@@ -151,7 +158,7 @@ const Dashboard = {
           {
             label: 'Despesas',
             data: evolution.map(e => e.expenses),
-            backgroundColor: '#2563eb',
+            backgroundColor: primaryColor,
             borderRadius: 8,
             barPercentage: 0.5,
             categoryPercentage: 0.6,
@@ -166,7 +173,7 @@ const Dashboard = {
           legend: {
             position: 'top',
             align: 'end',
-            labels: { color: '#8b5cf6', font: { family: 'Inter', size: 12 }, boxWidth: 10, usePointStyle: true },
+            labels: { color: mutedColor, font: { family: 'Inter', size: 12 }, boxWidth: 10, usePointStyle: true },
           },
           tooltip: {
             callbacks: {
@@ -178,20 +185,26 @@ const Dashboard = {
           x: {
             border: { display: false },
             grid: { display: false },
-            ticks: { color: '#8b5cf6', font: { family: 'Inter', size: 11 } }
+            ticks: { color: mutedColor, font: { family: 'Inter', size: 11 } }
           },
           y: {
             border: { display: false },
             ticks: {
-              color: '#8b5cf6',
+              color: mutedColor,
               font: { family: 'Inter', size: 11 },
               callback: (v) => 'R$' + (v >= 1000 ? (v/1000).toFixed(0)+'k' : v)
             },
-            grid: { color: 'rgba(139,92,246,0.1)' }
+            grid: { color: gridColor }
           }
         },
       },
     });
+  },
+
+  refreshTheme() {
+    if (this._lastEvolution.length && document.getElementById('chart-bar')) {
+      this._renderBarChart(this._lastEvolution);
+    }
   },
 
   _renderRecentTransactions(transactions) {
@@ -199,8 +212,8 @@ const Dashboard = {
     if (!container) return;
     if (!transactions.length) {
       container.innerHTML = `
-        <div class="empty-state">
-          <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+        <div class="empty-state mascot-empty-state">
+          <img class="empty-state-mascot" src="/image/mascot/advisor-thinking.webp" alt="" width="640" height="640" aria-hidden="true" />
           <h3>Nenhuma transação este mês</h3>
           <p>Clique em "+" para adicionar uma movimentação.</p>
         </div>`;

@@ -122,6 +122,15 @@ const Auth = {
     if (emailEl && this.user) {
       emailEl.textContent = this.user.email;
     }
+    const avatarEl = document.getElementById('user-avatar-initials');
+    if (avatarEl && this.user?.email) {
+      const localPart = this.user.email.split('@')[0];
+      const pieces = localPart.split(/[._-]+/).filter(Boolean);
+      avatarEl.textContent = pieces
+        .slice(0, 2)
+        .map(piece => piece.charAt(0).toUpperCase())
+        .join('') || 'RF';
+    }
   },
 
   _showLoginError(msg) {

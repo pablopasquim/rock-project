@@ -14,11 +14,11 @@ const Transactions = {
     this._activeCat = '';
 
     container.innerHTML = `
-      <div class="panel-card" style="padding:32px;">
+      <div class="panel-card transactions-panel">
         <!-- Compact Header -->
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+        <div class="module-header">
           <div>
-            <h2 class="panel-title" style="font-size:1.2rem;">Transações · ${escapeHTML(formatMonthLabel(monthKey))}</h2>
+            <h2 class="panel-title">Transações · ${escapeHTML(formatMonthLabel(monthKey))}</h2>
             <span class="tx-date" id="tx-meta-summary">Carregando extrato...</span>
           </div>
           <button class="btn-primary-cockpit" id="btn-tx-new">
@@ -28,14 +28,14 @@ const Transactions = {
         </div>
 
         <!-- Filter Chips Type -->
-        <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;" id="filter-chips">
-          <button class="topbar-btn active" data-type="" style="width:auto;padding:6px 16px;border-radius:20px;background:var(--primary);color:#fff;border:none;">Tudo</button>
-          <button class="topbar-btn" data-type="expense" style="width:auto;padding:6px 16px;border-radius:20px;">Despesas</button>
-          <button class="topbar-btn" data-type="income" style="width:auto;padding:6px 16px;border-radius:20px;">Receitas</button>
+        <div class="filter-row" id="filter-chips" aria-label="Filtrar por tipo">
+          <button class="topbar-btn filter-chip active" data-type="">Tudo</button>
+          <button class="topbar-btn filter-chip" data-type="expense">Despesas</button>
+          <button class="topbar-btn filter-chip" data-type="income">Receitas</button>
         </div>
 
         <!-- Filter Chips Category -->
-        <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;" id="cat-chips"></div>
+        <div class="filter-row category-filters" id="cat-chips" aria-label="Filtrar por categoria"></div>
 
         <div id="tx-list"><div class="loader"><div class="spinner"></div></div></div>
       </div>
@@ -66,7 +66,7 @@ const Transactions = {
     if (!container || !cats.length) return;
 
     container.innerHTML = cats.map(c => `
-      <button class="topbar-btn" data-cat="${escapeHTML(c)}" style="width:auto;padding:4px 14px;font-size:0.8rem;border-radius:18px;">
+      <button class="topbar-btn filter-chip" data-cat="${escapeHTML(c)}">
         ${escapeHTML(c.charAt(0).toUpperCase() + c.slice(1))}
       </button>
     `).join('');
@@ -81,29 +81,22 @@ const Transactions = {
   _setTypeFilter(type, btn) {
     this._activeType = type;
     document.querySelectorAll('#filter-chips .topbar-btn').forEach(b => {
-      b.style.background = 'var(--bg-surface)';
-      b.style.color = 'var(--text-secondary)';
-      b.style.border = '1px solid var(--border)';
+      b.classList.remove('active');
     });
-    btn.style.background = 'var(--primary)';
-    btn.style.color = '#ffffff';
-    btn.style.border = 'none';
+    btn.classList.add('active');
     this._applyFilters();
   },
 
   _setCatFilter(cat, btn) {
     if (this._activeCat === cat) {
       this._activeCat = '';
-      btn.style.background = 'var(--bg-surface)';
-      btn.style.color = 'var(--text-secondary)';
+      btn.classList.remove('active');
     } else {
       this._activeCat = cat;
       document.querySelectorAll('#cat-chips .topbar-btn').forEach(b => {
-        b.style.background = 'var(--bg-surface)';
-        b.style.color = 'var(--text-secondary)';
+        b.classList.remove('active');
       });
-      btn.style.background = 'var(--primary)';
-      btn.style.color = '#ffffff';
+      btn.classList.add('active');
     }
     this._applyFilters();
   },
@@ -129,8 +122,8 @@ const Transactions = {
 
     if (!transactions.length) {
       container.innerHTML = `
-        <div class="empty-state">
-          <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+        <div class="empty-state mascot-empty-state">
+          <img class="empty-state-mascot" src="/image/mascot/advisor-thinking.webp" alt="" width="640" height="640" aria-hidden="true" />
           <h3>Nenhuma transação encontrada</h3>
           <p>Tente remover os filtros ou adicione uma nova transação.</p>
         </div>`;
@@ -147,8 +140,8 @@ const Transactions = {
     container.innerHTML = Object.entries(grouped)
       .sort(([a], [b]) => b.localeCompare(a))
       .map(([date, txs]) => `
-        <div style="margin-bottom:18px;">
-          <div style="font-size:0.8rem;color:var(--text-muted);font-weight:700;letter-spacing:0.04em;margin-bottom:10px;padding-left:4px;">
+        <section class="transaction-day">
+          <div class="transaction-day-label">
             ${formatDate(date)}
           </div>
           <div class="recent-tx-list">
@@ -163,21 +156,21 @@ const Transactions = {
                     <div class="tx-date">${escapeHTML(tx.category)}</div>
                   </div>
                 </div>
-                <div style="display:flex;align-items:center;gap:12px;">
+                <div class="tx-item-actions">
                   <div class="tx-amount ${tx.type}">
                     ${tx.type === 'expense' ? '-' : '+'}${formatCurrency(tx.amount)}
                   </div>
-                  <button class="topbar-btn btn-edit-tx" data-tx='${JSON.stringify(tx).replace(/'/g, "&#39;")}' title="Editar" style="width:30px;height:30px;border:none;">
+                  <button class="topbar-btn tx-action-btn btn-edit-tx" data-tx='${JSON.stringify(tx).replace(/'/g, "&#39;")}' title="Editar" aria-label="Editar ${escapeHTML(tx.description)}">
                     <i data-lucide="pencil" style="width:14px;height:14px;"></i>
                   </button>
-                  <button class="topbar-btn btn-delete-tx" data-tx-id="${tx.id}" title="Excluir" style="width:30px;height:30px;border:none;color:var(--expense);">
+                  <button class="topbar-btn tx-action-btn btn-delete-tx" data-tx-id="${tx.id}" title="Excluir" aria-label="Excluir ${escapeHTML(tx.description)}">
                     <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
                   </button>
                 </div>
               </div>
             `).join('')}
           </div>
-        </div>
+        </section>
       `).join('');
 
     container.querySelectorAll('.btn-edit-tx').forEach(btn => {

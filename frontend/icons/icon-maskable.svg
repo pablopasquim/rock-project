@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Rock Finance">
+  <defs>
+    <linearGradient id="bg" x1="40" y1="24" x2="476" y2="488" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#083F8C"/>
+      <stop offset=".58" stop-color="#116AD1"/>
+      <stop offset="1" stop-color="#0B8F8B"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <circle cx="410" cy="94" r="170" fill="#75E3E1" opacity=".12"/>
+  <path d="M113 351 207 190l57 88 44-62 91 135H113Z" fill="#061B3E" opacity=".34"/>
+  <path d="m139 329 72-81 57 50 94-117" fill="none" stroke="#fff" stroke-width="29" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="m329 181 43-6-2 44" fill="none" stroke="#fff" stroke-width="29" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

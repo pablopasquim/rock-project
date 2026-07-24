@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">Rock Finance</title>
+  <defs>
+    <linearGradient id="bg" x1="64" y1="32" x2="450" y2="480" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0A4FAE"/>
+      <stop offset=".58" stop-color="#1176E8"/>
+      <stop offset="1" stop-color="#12A8A0"/>
+    </linearGradient>
+    <linearGradient id="line" x1="126" y1="341" x2="398" y2="149" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#D9F3FF"/>
+      <stop offset="1" stop-color="#FFFFFF"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="120" fill="url(#bg)"/>
+  <circle cx="400" cy="92" r="142" fill="#75E3E1" opacity=".12"/>
+  <path d="M105 355 205 174l60 94 47-67 95 154H105Z" fill="#071E46" opacity=".36"/>
+  <path d="m126 338 82-93 61 54 106-131" fill="none" stroke="url(#line)" stroke-width="31" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="m337 168 48-7-2 49" fill="none" stroke="#fff" stroke-width="31" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

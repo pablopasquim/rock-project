@@ -154,8 +154,42 @@ A suíte de testes cobre autenticação, isolamento de dados do household, sanit
 ```
 
 ### Resultado dos Testes:
-- **Testes iniciais:** 71 passavam
-- **Testes atuais:** 72 passavam (100% sucesso)
+- **Testes atuais:** 79 passavam (100% sucesso)
+
+---
+
+## 📱 PWA e Firebase Hosting
+
+O frontend é instalável como PWA no Android, iOS e desktop. O Service Worker mantém
+somente o shell estático no cache; rotas `/api/**`, tokens e respostas financeiras
+sempre passam pela rede.
+
+As ilustrações do Rock Advisor ficam em `frontend/image/mascot/` no formato WebP
+com transparência. As animações são feitas em CSS e respeitam a preferência
+`prefers-reduced-motion` do sistema.
+
+O `firebase.json` serve os arquivos de `frontend/` pela CDN do Firebase Hosting e
+encaminha `/api/**` para o serviço `agent-finance` no Cloud Run em `us-central1`.
+Se o nome ou a região do serviço forem diferentes, ajuste esses dois campos antes
+do deploy.
+
+```bash
+# Autenticar uma única vez e publicar o frontend
+firebase login
+firebase deploy --only hosting
+```
+
+Após o deploy:
+
+1. Adicione `SEU_GCP_PROJECT_ID.web.app` aos domínios autorizados em
+   **Firebase Authentication > Settings > Authorized domains**.
+2. Para usar um endereço próprio, abra **Firebase Hosting > Add custom domain**,
+   informe um domínio como `app.seudominio.com.br` e configure no provedor os
+   registros DNS exibidos pelo Firebase.
+3. Adicione a URL final ao `APP_ORIGINS` usado no deploy do Cloud Run, especialmente
+   se o frontend vier a chamar a API fora do proxy de mesma origem.
+4. No celular, abra a URL e selecione **Adicionar à tela inicial**. Em navegadores
+   compatíveis no desktop, use o botão **Instalar** exibido no cabeçalho.
 
 ---
 

@@ -51,3 +51,12 @@ Thumbs.db
 # Logs
 *.log
 logs/
+
+# Test and tooling caches
+.pytest_cache/
+
+# Firebase CLI local cache
+.firebase/
+
+# Local image-generation intermediates
+tmp/imagegen/

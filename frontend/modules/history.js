@@ -20,17 +20,17 @@ const History = {
     }
 
     container.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+      <div class="history-toolbar">
         <div class="month-nav">
-          <button class="btn btn-secondary" id="btn-prev-month" style="padding:8px 12px;" aria-label="Mês anterior">
+          <button class="btn btn-secondary" id="btn-prev-month" aria-label="Mês anterior">
             <i data-lucide="chevron-left" style="width:16px;height:16px;"></i>
           </button>
           <span class="month-display" id="history-month-display">${escapeHTML(formatMonthLabel(this._currentMonth))}</span>
-          <button class="btn btn-secondary" id="btn-next-month" style="padding:8px 12px;" aria-label="Próximo mês">
+          <button class="btn btn-secondary" id="btn-next-month" aria-label="Próximo mês">
             <i data-lucide="chevron-right" style="width:16px;height:16px;"></i>
           </button>
         </div>
-        <button class="btn btn-secondary" id="btn-export-csv" style="font-size:13px;">
+        <button class="btn btn-secondary" id="btn-export-csv">
           <i data-lucide="download" style="width:14px;height:14px;"></i>
           Exportar CSV
         </button>
@@ -65,10 +65,8 @@ const History = {
 
     if (!detail) {
       content.innerHTML = `
-        <div class="empty-state" style="padding:72px 0;">
-          <div class="empty-state-icon">
-            <i data-lucide="calendar-x" style="width:28px;height:28px;"></i>
-          </div>
+        <div class="empty-state mascot-empty-state" style="padding:48px 0;">
+          <img class="empty-state-mascot" src="/image/mascot/advisor-thinking.webp" alt="" width="640" height="640" aria-hidden="true" />
           <h3>Sem dados em ${escapeHTML(formatMonthLabel(monthKey))}</h3>
           <p>Nenhuma transação registrada neste mês.</p>
         </div>`;
@@ -188,8 +186,8 @@ const History = {
             </div>
           `).join('')}
         </div>` : `
-        <div class="empty-state" style="padding:32px 0;">
-          <div class="empty-state-icon"><i data-lucide="inbox" style="width:28px;height:28px;"></i></div>
+        <div class="empty-state mascot-empty-state" style="padding:32px 0;">
+          <img class="empty-state-mascot compact" src="/image/mascot/advisor-thinking.webp" alt="" width="640" height="640" aria-hidden="true" />
           <h3>Sem transações</h3>
           <p>Nenhuma transação registrada neste mês.</p>
         </div>`}

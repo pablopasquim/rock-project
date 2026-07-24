@@ -26,11 +26,7 @@ const Chat = {
         <aside class="advisor-sidebar">
           <div class="advisor-brand">
             <div class="advisor-avatar-lg">
-              <svg width="32" height="32" viewBox="0 0 36 36" fill="none" aria-hidden="true">
-                <path d="M18 4L6 28H30L18 4Z" fill="white" opacity="0.9"/>
-                <path d="M18 14L11 28H25L18 14Z" fill="#00b4d8" opacity="0.8"/>
-                <circle cx="18" cy="10" r="2" fill="white" opacity="0.7"/>
-              </svg>
+              <img src="/image/mascot/advisor-thinking.webp" alt="" width="640" height="640" aria-hidden="true" />
             </div>
             <div>
               <div class="advisor-brand-name">Rock Advisor</div>
@@ -220,11 +216,7 @@ const Chat = {
     return `
       <div class="advisor-welcome">
         <div class="advisor-welcome-avatar">
-          <svg width="40" height="40" viewBox="0 0 36 36" fill="none" aria-hidden="true">
-            <path d="M18 4L6 28H30L18 4Z" fill="white" opacity="0.9"/>
-            <path d="M18 14L11 28H25L18 14Z" fill="#00b4d8" opacity="0.8"/>
-            <circle cx="18" cy="10" r="2" fill="white" opacity="0.7"/>
-          </svg>
+          <img src="/image/mascot/advisor-welcome.webp" alt="" width="640" height="640" aria-hidden="true" />
         </div>
         <div class="advisor-welcome-text">
           <div class="advisor-welcome-greeting">${greeting}! Sou o Rock Advisor 👋</div>

@@ -3,15 +3,28 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Rock Finance — Plataforma Fintech com Inteligência Artificial para gestão financeira." />
+  <meta name="description" content="Rock Finance — suas finanças pessoais organizadas com inteligência artificial." />
+  <meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0b101b" media="(prefers-color-scheme: dark)" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Rock Finance" />
   <title>Rock Finance — Finanças Pessoais com IA</title>
 
   <!-- Preconnect -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+
   <!-- Styles -->
-  <link rel="stylesheet" href="/static/index.css" />
+  <script src="/theme-init.js"></script>
+  <link rel="stylesheet" href="/index.css" />
+  <link rel="stylesheet" href="/modern.css?v=20260724-2" />
 
   <!-- Dependências Externas -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
@@ -20,32 +33,76 @@
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.9/dist/purify.min.js"></script>
 </head>
 <body>
+  <a class="skip-link" href="#page-content">Ir para o conteúdo</a>
+  <div class="ambient-canvas" aria-hidden="true"></div>
 
   <!-- Tela de Login -->
-  <div id="login-screen" class="modal-overlay" style="display: flex; background: var(--navy-950);">
-    <div class="modal-content" style="max-width: 420px; border: 1px solid var(--navy-700); background: var(--navy-900); color: #ffffff;">
-      <div style="text-align: center; margin-bottom: 28px;">
-        <img src="/static/image/logo2.png" alt="Rock Finance Logo" class="login-logo-img" style="width: 220px; max-width: 85%; height: auto; object-fit: contain; margin-bottom: 12px; filter: drop-shadow(0 8px 32px rgba(67,97,238,0.6));" />
-        <p style="font-size: 0.95rem; color: var(--navy-300); margin-top: 8px;">Entre na sua plataforma financeira</p>
+  <div id="login-screen" class="login-screen">
+    <section class="login-shell" aria-labelledby="login-heading">
+      <div class="login-brand-panel">
+        <div class="login-brand-content">
+          <span class="eyebrow">FINANÇAS SEM RUÍDO</span>
+          <img src="/image/logo2.png" alt="Rock Finance" class="login-logo-img" />
+          <h1 id="login-heading">Clareza para decidir melhor.</h1>
+          <p>Organize o mês, entenda seus gastos e converse com seu advisor financeiro em um só lugar.</p>
+        </div>
+        <img
+          src="/image/mascot/advisor-welcome.webp"
+          alt=""
+          class="login-mascot"
+          width="640"
+          height="640"
+          aria-hidden="true"
+        />
+        <div class="login-proof" aria-hidden="true">
+          <span class="login-proof-label">Seu mês em perspectiva</span>
+          <div class="login-proof-line"></div>
+          <div class="login-proof-bars">
+            <span style="--bar: 52%"></span>
+            <span style="--bar: 74%"></span>
+            <span style="--bar: 46%"></span>
+            <span style="--bar: 88%"></span>
+            <span style="--bar: 63%"></span>
+          </div>
+        </div>
       </div>
 
-      <div id="login-error-msg" style="display: none; padding: 12px; border-radius: var(--r-sm); background: rgba(244,63,94,0.15); border: 1px solid var(--expense); color: #ffb4c2; font-size: 0.85rem; margin-bottom: 16px;"></div>
+      <div class="login-form-panel">
+        <div class="login-form-heading">
+          <span class="eyebrow">ÁREA SEGURA</span>
+          <h2>Bem-vindo de volta</h2>
+          <p>Entre para acessar sua casa financeira.</p>
+        </div>
 
-      <form id="login-form" style="display: flex; flex-direction: column; gap: 16px;">
-        <div style="display: flex; flex-direction: column; gap: 6px;">
-          <label style="font-size: 0.82rem; font-weight: 600; color: var(--navy-300);" for="login-email">E-mail</label>
-          <input style="padding: 12px 16px; border-radius: var(--r-sm); border: 1px solid var(--navy-600); background: var(--navy-950); color: #ffffff; outline: none;" type="email" id="login-email" placeholder="seu@email.com" required autocomplete="email" />
+        <div id="login-error-msg" class="login-error" role="alert" aria-live="polite"></div>
+
+        <form id="login-form" class="login-form">
+          <div class="login-field">
+            <label for="login-email">E-mail</label>
+            <div class="login-input-wrap">
+              <i data-lucide="mail" aria-hidden="true"></i>
+              <input type="email" id="login-email" placeholder="seu@email.com" required autocomplete="email" />
+            </div>
+          </div>
+          <div class="login-field">
+            <label for="login-password">Senha</label>
+            <div class="login-input-wrap">
+              <i data-lucide="lock-keyhole" aria-hidden="true"></i>
+              <input type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password" />
+            </div>
+          </div>
+          <button type="submit" class="btn-primary-cockpit login-submit" id="login-btn">
+            <span>Acessar minhas finanças</span>
+            <i data-lucide="arrow-right" aria-hidden="true"></i>
+          </button>
+        </form>
+
+        <div class="login-security">
+          <i data-lucide="shield-check" aria-hidden="true"></i>
+          <span>Acesso protegido pelo Firebase Authentication</span>
         </div>
-        <div style="display: flex; flex-direction: column; gap: 6px;">
-          <label style="font-size: 0.82rem; font-weight: 600; color: var(--navy-300);" for="login-password">Senha</label>
-          <input style="padding: 12px 16px; border-radius: var(--r-sm); border: 1px solid var(--navy-600); background: var(--navy-950); color: #ffffff; outline: none;" type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password" />
-        </div>
-        <button type="submit" class="btn-primary-cockpit" id="login-btn" style="justify-content: center; width: 100%; margin-top: 8px;">
-          <i data-lucide="log-in" style="width:18px;height:18px;"></i>
-          Entrar
-        </button>
-      </form>
-    </div>
+      </div>
+    </section>
   </div>
 
   <!-- Aplicação Principal -->
@@ -53,7 +110,7 @@
     <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-logo">
-        <img src="/static/image/logo2.png" alt="Rock Finance Logo" class="sidebar-logo-img" />
+        <img src="/image/logo2.png" alt="Rock Finance" class="sidebar-logo-img" />
       </div>
 
       <nav class="sidebar-nav">
@@ -92,9 +149,12 @@
     <!-- Main Wrapper -->
     <div class="main-wrapper">
       <header class="topbar">
-        <div>
+        <div class="topbar-heading">
+          <img src="/icons/icon.svg" alt="" class="mobile-brand-mark" aria-hidden="true" />
+          <div>
           <h1 class="topbar-title" id="page-title">Dashboard</h1>
           <span class="topbar-subtitle" id="page-subtitle">Visão geral financeira</span>
+          </div>
         </div>
 
         <div class="topbar-actions">
@@ -107,6 +167,11 @@
             <i data-lucide="moon" style="width:18px;height:18px;"></i>
           </button>
 
+          <button class="topbar-btn install-app-btn" id="pwa-install-btn" aria-label="Instalar Rock Finance" title="Instalar aplicativo" hidden>
+            <i data-lucide="download" style="width:18px;height:18px;"></i>
+            <span>Instalar</span>
+          </button>
+
           <button class="btn-primary-cockpit" id="btn-add-transaction">
             <i data-lucide="plus" style="width:18px;height:18px;"></i>
             <span>Nova Transação</span>
@@ -114,13 +179,13 @@
         </div>
       </header>
 
-      <main class="app-content" id="page-content">
+      <main class="app-content" id="page-content" tabindex="-1">
         <div class="loader"><div class="spinner"></div></div>
       </main>
     </div>
 
     <!-- Bottom Navigation Mobile Inspirado na Imagem -->
-    <nav class="mobile-nav">
+    <nav class="mobile-nav" aria-label="Navegação principal">
       <a class="mobile-nav-item active" data-page="dashboard" href="#">
         <i data-lucide="layout-dashboard" style="width:22px;height:22px;"></i>
         <span>Home</span>
@@ -129,7 +194,7 @@
         <i data-lucide="arrow-left-right" style="width:22px;height:22px;"></i>
         <span>Extrato</span>
       </a>
-      <button class="mobile-fab" id="btn-mobile-fab" title="Nova Transação">
+      <button class="mobile-fab" id="btn-mobile-fab" title="Nova transação" aria-label="Adicionar nova transação">
         <i data-lucide="plus" style="width:26px;height:26px;"></i>
       </button>
       <a class="mobile-nav-item" data-page="history" href="#">
@@ -223,11 +288,12 @@
 
 
   <!-- Scripts -->
-  <script src="/static/auth.js"></script>
-  <script src="/static/modules/dashboard.js"></script>
-  <script src="/static/modules/transactions.js"></script>
-  <script src="/static/modules/history.js"></script>
-  <script src="/static/modules/chat.js"></script>
-  <script src="/static/app.js"></script>
+  <script src="/auth.js?v=20260724-2"></script>
+  <script src="/modules/dashboard.js?v=20260724-2"></script>
+  <script src="/modules/transactions.js?v=20260724-2"></script>
+  <script src="/modules/history.js?v=20260724-2"></script>
+  <script src="/modules/chat.js?v=20260724-2"></script>
+  <script src="/app.js?v=20260724-2"></script>
+  <script src="/pwa.js?v=20260724-2"></script>
 </body>
 </html>

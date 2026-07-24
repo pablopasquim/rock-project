@@ -1,9 +1,9 @@
-const CACHE_VERSION = 'rock-finance-shell-v12';
+const CACHE_VERSION = 'rock-finance-shell-v13';
 const APP_SHELL = [
   '/',
   '/index.html',
   '/index.css?v=20260724-2',
-  '/modern.css?v=20260724-11',
+  '/modern.css?v=20260724-12',
   '/theme-init.js',
   '/auth.js?v=20260724-7',
   '/app.js?v=20260724-9',

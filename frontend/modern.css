@@ -655,12 +655,19 @@ select {
 .purple-hero-card::after {
   content: "";
   position: absolute;
+  z-index: 0;
   width: 220px;
   height: 220px;
   right: -95px;
   bottom: -126px;
   border: 42px solid rgba(255, 255, 255, 0.075);
   border-radius: 50%;
+  pointer-events: none;
+}
+
+.purple-hero-card > * {
+  position: relative;
+  z-index: 1;
 }
 
 .hero-balance-title {

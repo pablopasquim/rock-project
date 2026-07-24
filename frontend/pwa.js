@@ -68,6 +68,12 @@
   installButton?.addEventListener('click', requestInstall);
   bannerButton?.addEventListener('click', requestInstall);
 
+  // iOS does not expose beforeinstallprompt. Keep an explicit install entry
+  // visible so the user can always reach the browser-specific instructions.
+  if (isMobile && !isStandalone) {
+    showInstallUi({ fallback: true });
+  }
+
   bannerDismiss?.addEventListener('click', () => {
     if (installBanner) installBanner.hidden = true;
     try {
@@ -90,11 +96,6 @@
       navigator.serviceWorker.register('/service-worker.js', { scope: '/' })
         .catch((error) => console.warn('Não foi possível registrar o modo instalável.', error));
 
-      if (isMobile && !isStandalone) {
-        window.setTimeout(() => {
-          if (!installPrompt) showInstallUi({ fallback: true });
-        }, 1800);
-      }
     });
   }
 })();

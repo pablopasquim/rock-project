@@ -17,6 +17,11 @@
   intrinsic labels, the transaction modal stays within the visual viewport while
   the keyboard is open, and installation is discoverable through a native prompt
   or browser-specific fallback instructions.
+- Removed the remaining horizontal overflow sources found on a 430 px viewport:
+  the balance decoration is now contained by its card, charts cannot grow beyond
+  their panel, the Advisor collapses to one column, and the bottom navigation uses
+  five explicit tracks. The install entry is always available on mobile when the
+  app is not already running in standalone mode.
 
 Validation to observe after release:
 

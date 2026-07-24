@@ -188,8 +188,9 @@ Após o deploy:
    registros DNS exibidos pelo Firebase.
 3. Adicione a URL final ao `APP_ORIGINS` usado no deploy do Cloud Run, especialmente
    se o frontend vier a chamar a API fora do proxy de mesma origem.
-4. No celular, abra a URL e selecione **Adicionar à tela inicial**. Em navegadores
-   compatíveis no desktop, use o botão **Instalar** exibido no cabeçalho.
+4. No celular, use o botão **Instalar** no cabeçalho ou no banner mobile. Quando
+   o navegador não oferece o prompt nativo, o app mostra as instruções para usar
+   **Instalar app** ou **Adicionar à tela inicial** pelo menu do navegador.
 
 ---
 

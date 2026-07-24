@@ -13,6 +13,10 @@
 - Added explicit authentication feedback: an interactive login briefly transitions
   to a confirmed state before the dashboard opens. Restored sessions skip this
   ceremony to keep returning access immediate.
+- Corrected mobile task flow after device testing: filter chips preserve their
+  intrinsic labels, the transaction modal stays within the visual viewport while
+  the keyboard is open, and installation is discoverable through a native prompt
+  or browser-specific fallback instructions.
 
 Validation to observe after release:
 

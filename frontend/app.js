@@ -526,6 +526,10 @@ window.onAppInit = async function () {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+  if (window.lucide) {
+    window.lucide.createIcons();
+  }
+
   const typingText = document.querySelector('[data-typing-text]');
   if (typingText) {
     const fullText = typingText.dataset.typingText || '';

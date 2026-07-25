@@ -134,6 +134,18 @@ select {
 }
 
 /* Login */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
 .login-screen {
   position: fixed;
   inset: 0;
@@ -234,6 +246,33 @@ select {
   color: rgba(255, 255, 255, 0.76);
   font-size: clamp(0.98rem, 1.5vw, 1.08rem);
   line-height: 1.7;
+}
+
+.login-tagline {
+  min-height: 5.1em;
+}
+
+.login-typing-text::after {
+  content: "";
+  display: inline-block;
+  width: 2px;
+  height: 1.05em;
+  margin-left: 4px;
+  vertical-align: -0.12em;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.92);
+  animation: loginCursorBlink 760ms steps(1, end) infinite;
+}
+
+.login-typing-text.is-complete::after {
+  opacity: 0;
+  animation: none;
+  transition: opacity 420ms ease 650ms;
+}
+
+@keyframes loginCursorBlink {
+  0%, 48% { opacity: 1; }
+  49%, 100% { opacity: 0; }
 }
 
 .login-proof {

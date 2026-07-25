@@ -526,6 +526,35 @@ window.onAppInit = async function () {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+  const typingText = document.querySelector('[data-typing-text]');
+  if (typingText) {
+    const fullText = typingText.dataset.typingText || '';
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (reduceMotion) {
+      typingText.textContent = fullText;
+      typingText.classList.add('is-complete');
+    } else {
+      let characterIndex = 0;
+
+      const typeNextCharacter = () => {
+        characterIndex += 1;
+        typingText.textContent = fullText.slice(0, characterIndex);
+
+        if (characterIndex >= fullText.length) {
+          typingText.classList.add('is-complete');
+          return;
+        }
+
+        const currentCharacter = fullText[characterIndex - 1];
+        const delay = currentCharacter === ',' ? 190 : currentCharacter === ' ' ? 24 : 38;
+        window.setTimeout(typeNextCharacter, delay);
+      };
+
+      window.setTimeout(typeNextCharacter, 420);
+    }
+  }
+
   // Navigation
   document.querySelectorAll('.nav-item, .mobile-nav-item').forEach(el => {
     if (el.classList.contains('active')) {

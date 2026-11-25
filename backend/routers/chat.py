@@ -96,7 +96,7 @@ def chat(
 
         return ChatResponse(response=response_text, history=updated_history)
 
-    except ValueError as e:
+    except ValueError:
         logger.warning("ai_configuration_or_response_invalid")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

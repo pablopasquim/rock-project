@@ -2,7 +2,6 @@
 Testes completos para /api/chat e /api/health
 Cobre: envio de mensagens, validações, tratamento de erros Gemini, rate limit, histórico e sugestões.
 """
-import pytest
 from backend.routers.chat import reset_rate_limiter, RATE_LIMIT_REQUESTS
 
 

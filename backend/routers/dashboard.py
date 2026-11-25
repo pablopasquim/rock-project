@@ -1,7 +1,6 @@
 from backend.models.schemas import MONTH_PATTERN
 from fastapi import APIRouter, Query, Depends
 from typing import List
-from datetime import datetime, timezone
 from backend.models.schemas import DashboardSummary, CategorySummary, MonthlyEvolution
 from backend.services.auth_service import get_current_user
 import backend.services.firestore_service as fs

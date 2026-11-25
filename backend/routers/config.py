@@ -1,7 +1,6 @@
 import os
 from fastapi import APIRouter, Response
 # pyrefly: ignore [missing-import]
-from dotenv import load_dotenv
 from backend.services.auth_service import is_dev_bypass_active
 
 router = APIRouter(prefix="/api/config", tags=["config"])

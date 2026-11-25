@@ -1,9 +1,8 @@
 from fastapi import APIRouter, Query, Depends, Path
 from fastapi.responses import StreamingResponse
-from typing import List
 import io
 import csv
-from backend.models.schemas import MonthDetail, MonthComparison, MONTH_PATTERN
+from backend.models.schemas import MonthDetail, MONTH_PATTERN
 from backend.services.finance_service import csv_safe
 from backend.services.auth_service import get_current_user
 import backend.services.firestore_service as fs

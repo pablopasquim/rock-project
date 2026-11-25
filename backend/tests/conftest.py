@@ -8,7 +8,6 @@ Estratégia de mock:
 3. Usar patch.object() no fixture para substituir 'fs' e 'gemini'
    dentro de cada router — sem precisar de credenciais GCP.
 """
-import sys
 from unittest.mock import MagicMock, patch
 import pytest
 

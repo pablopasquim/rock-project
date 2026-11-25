@@ -3,11 +3,11 @@ Testes de Autenticação, Autorização, CSP e Startup Guards
 """
 import os
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from backend.main import app
-from backend.services.auth_service import validate_auth_startup, get_current_user, verify_firebase_token
+from backend.services.auth_service import validate_auth_startup, verify_firebase_token
 import backend.services.auth_service as auth_service
 
 

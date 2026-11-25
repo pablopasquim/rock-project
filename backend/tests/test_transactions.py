@@ -2,7 +2,6 @@
 Testes para /api/transactions
 Cobre: criação, listagem, atualização, deleção, categorias e metadados de autoria (created_by / updated_by).
 """
-import pytest
 from .conftest import SAMPLE_TX, SAMPLE_TX_INCOME
 
 

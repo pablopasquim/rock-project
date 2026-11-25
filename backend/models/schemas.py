@@ -157,14 +157,6 @@ class MonthDetail(BaseModel):
         return validate_month_key_str(v)
 
 
-class MonthComparison(BaseModel):
-    month_a: MonthDetail
-    month_b: MonthDetail
-    income_diff: float
-    expenses_diff: float
-    balance_diff: float
-
-
 # ─── Chat ───────────────────────────────────────────────────────────────────
 
 class ChatMessage(BaseModel):

@@ -70,11 +70,6 @@ def validate_auth_startup() -> None:
                 raise RuntimeError(f"CRITICAL SECURITY ERROR: Configuração de produção '{name}' está ausente ou contém valor placeholder inválido.")
 
 
-def validate_dev_bypass_startup() -> None:
-    """Retrocompatibilidade com alias para validate_auth_startup."""
-    validate_auth_startup()
-
-
 def get_allowed_emails() -> List[str]:
     """Retorna a lista de e-mails autorizados normalizados."""
     raw = os.getenv("ALLOWED_USER_EMAILS", "")
@@ -122,7 +117,7 @@ def verify_firebase_token(token_str: str) -> Dict[str, Any]:
             detail="Serviço de autenticação temporariamente indisponível.",
             headers={"Retry-After": "5"},
         ) from e
-    except Exception as e:
+    except Exception:
         logger.debug("firebase_token_rejected")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

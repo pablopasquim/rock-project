@@ -14,7 +14,7 @@ from fastapi.exceptions import RequestValidationError
 from backend.services.http_security import RequestSafetyMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import Response
 # pyrefly: ignore [missing-import]
 from dotenv import load_dotenv
 

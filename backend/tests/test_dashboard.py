@@ -2,8 +2,6 @@
 Testes para /api/dashboard
 Cobre: summary, by-category e evolução mensal.
 """
-import pytest
-from .conftest import SAMPLE_SUMMARY, SAMPLE_BY_CATEGORY, SAMPLE_EVOLUTION
 
 
 class TestDashboardSummary:

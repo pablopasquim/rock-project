@@ -34,14 +34,14 @@ ALLOWED_USER_EMAILS="${ALLOWED_USER_EMAILS:-}"
 ALLOWED_USER_UIDS="${ALLOWED_USER_UIDS:-}"
 AI_ENABLED="${AI_ENABLED:-false}"
 AI_DAILY_LIMIT="${AI_DAILY_LIMIT:-20}"
-GEMINI_MODEL="${GEMINI_MODEL:-gemini-2.5-flash}"
+GEMINI_MODEL="${GEMINI_MODEL:-gemini-3-flash-preview}"
+VERTEX_LOCATION="${VERTEX_LOCATION:-global}"
 APP_ORIGINS="${APP_ORIGINS:-}"
 
 FIREBASE_API_KEY="${FIREBASE_API_KEY:-}"
 FIREBASE_AUTH_DOMAIN="${FIREBASE_AUTH_DOMAIN:-}"
 FIREBASE_PROJECT_ID="${FIREBASE_PROJECT_ID:-${PROJECT_ID}}"
 FIREBASE_APP_ID="${FIREBASE_APP_ID:-}"
-GEMINI_KEY="${GEMINI_API_KEY:-}"
 
 # ─── Validações Estritas de Variáveis de Ambiente ─────────────────────────────
 [[ -z "$PROJECT_ID" || "$PROJECT_ID" == *"seu-projeto"* ]] && error "Configure GCP_PROJECT_ID explicitamente!"
@@ -66,6 +66,7 @@ gcloud services enable \
   firestore.googleapis.com \
   artifactregistry.googleapis.com \
   secretmanager.googleapis.com \
+  aiplatform.googleapis.com \
   --quiet
 
 # 3. Garantir permissões de Secret Manager para a Service Account do Cloud Run
@@ -79,13 +80,8 @@ if [[ -n "$PROJECT_NUMBER" ]]; then
     --quiet &>/dev/null || true
 fi
 
-# 4. Verificar e provisionar a secret 'gemini-api-key' no Secret Manager se não existir
-if [[ -n "$GEMINI_KEY" ]]; then
-  if ! gcloud secrets describe gemini-api-key --project="$PROJECT_ID" &>/dev/null; then
-    info "Criando secret 'gemini-api-key' no Secret Manager..."
-    printf "%s" "$GEMINI_KEY" | gcloud secrets create gemini-api-key --data-file=- --project="$PROJECT_ID" --quiet
-  fi
-fi
+# 4. IA via Vertex AI: autentica pela service account do Cloud Run
+#    (precisa de roles/aiplatform.user). Nenhuma API key e usada.
 
 # 5. Validar URL atual do Cloud Run antes do deploy (se o serviço já existir)
 EXISTING_URL=$(gcloud run services describe "$SERVICE_NAME" --region="$REGION" --format="value(status.url)" 2>/dev/null || echo "")
@@ -118,6 +114,7 @@ ALLOWED_USER_UIDS: "${ALLOWED_USER_UIDS}"
 AI_ENABLED: "${AI_ENABLED}"
 AI_DAILY_LIMIT: "${AI_DAILY_LIMIT}"
 GEMINI_MODEL: "${GEMINI_MODEL}"
+VERTEX_LOCATION: "${VERTEX_LOCATION}"
 APP_ORIGINS: "${APP_ORIGINS}"
 FIREBASE_API_KEY: "${FIREBASE_API_KEY}"
 FIREBASE_AUTH_DOMAIN: "${FIREBASE_AUTH_DOMAIN:-${PROJECT_ID}.firebaseapp.com}"
@@ -132,7 +129,7 @@ info "Construindo imagem de produção via Cloud Build: $IMAGE_URI"
 gcloud builds submit --tag "$IMAGE_URI" .
 success "Imagem construída com sucesso!"
 
-# 9. Deploy no Cloud Run (max-instances=1, secrets via Secret Manager)
+# 9. Deploy no Cloud Run (max-instances=1, IA via Vertex AI)
 info "Fazendo deploy no Cloud Run..."
 gcloud run deploy "$SERVICE_NAME" \
   --image="$IMAGE_URI" \
@@ -145,7 +142,7 @@ gcloud run deploy "$SERVICE_NAME" \
   --cpu=1 \
   --timeout=60 \
   --env-vars-file="$ENV_YAML_TMP" \
-  --set-secrets="GEMINI_API_KEY=gemini-api-key:latest" \
+  --remove-secrets="GEMINI_API_KEY" \
   --quiet
 
 # 10. Obter e validar a URL pós-deploy do Cloud Run

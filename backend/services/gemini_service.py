@@ -8,6 +8,8 @@ from backend.models.schemas import ChatMessage
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_MODEL = "gemini-3-flash-preview"
+
 SYSTEM_PROMPT_TEMPLATE = """Você é um assistente financeiro pessoal inteligente e amigável chamado **Rock Advisor**.
 Você tem acesso aos dados financeiros do usuário para o mês selecionado e deve ajudá-lo a entender suas finanças, 
 identificar padrões de gastos, sugerir economias e responder perguntas sobre seu dinheiro.
@@ -30,11 +32,22 @@ tópicos financeiros ou ofereça ajuda com suas finanças pessoais."""
 
 
 def _get_client() -> genai.Client:
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        raise ValueError("GEMINI_API_KEY não configurada no ambiente.")
-    return genai.Client(api_key=api_key, http_options=types.HttpOptions(
-        timeout=25000, retry_options=types.HttpRetryOptions(attempts=1)))
+    """Cliente do Gemini via Vertex AI.
+
+    Autentica com Application Default Credentials: no Cloud Run, a service
+    account da revisão (precisa de roles/aiplatform.user); localmente,
+    `gcloud auth application-default login`. Não usa API key.
+    """
+    project = os.getenv("GCP_PROJECT_ID")
+    if not project:
+        raise ValueError("GCP_PROJECT_ID não configurado para a Vertex AI.")
+    return genai.Client(
+        vertexai=True,
+        project=project,
+        location=os.getenv("VERTEX_LOCATION", "global"),
+        http_options=types.HttpOptions(
+            timeout=25000, retry_options=types.HttpRetryOptions(attempts=1)),
+    )
 
 
 def chat_with_context(
@@ -79,7 +92,7 @@ def chat_with_context(
 
     try:
         response = client.models.generate_content(
-        model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+        model=os.getenv("GEMINI_MODEL", DEFAULT_MODEL),
         contents=contents,
             config=config,
         )
@@ -87,7 +100,7 @@ def chat_with_context(
         client.close()
     usage = getattr(response, "usage_metadata", None)
     if usage:
-        logger.info(json.dumps({"event": "ai_usage", "model": os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+        logger.info(json.dumps({"event": "ai_usage", "model": os.getenv("GEMINI_MODEL", DEFAULT_MODEL),
             "input_tokens": usage.prompt_token_count, "output_tokens": usage.candidates_token_count,
             "thinking_tokens": usage.thoughts_token_count}))
 

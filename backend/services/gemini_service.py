@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_MODEL = "gemini-3-flash-preview"
 
 SYSTEM_PROMPT_TEMPLATE = """Você é um assistente financeiro pessoal inteligente e amigável chamado **Rock Advisor**.
-Você tem acesso aos dados financeiros do usuário para o mês selecionado e deve ajudá-lo a entender suas finanças, 
+Você tem acesso aos dados financeiros do usuário para o mês selecionado e deve ajudá-lo a entender suas finanças,
 identificar padrões de gastos, sugerir economias e responder perguntas sobre seu dinheiro.
 
 Responda sempre em português brasileiro, de forma clara, objetiva e com um toque de empatia.
@@ -27,7 +27,7 @@ Se budget for null, informe que não existe orçamento cadastrado.
 ==========================================
 
 Com base nesses dados, responda às perguntas do usuário de forma personalizada e útil.
-Se o usuário perguntar algo não relacionado a finanças, gentilmente redirecione para 
+Se o usuário perguntar algo não relacionado a finanças, gentilmente redirecione para
 tópicos financeiros ou ofereça ajuda com suas finanças pessoais."""
 
 
@@ -64,7 +64,7 @@ def chat_with_context(
 
     # Prepara o histórico no formato esperado pela SDK google-genai (types.Content)
     contents: List[types.Content] = []
-    
+
     # Adiciona histórico limpo
     for msg in history[-10:]:  # Limita aos últimos 10 turnos
         role = "user" if msg.role == "user" else "model"

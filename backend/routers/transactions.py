@@ -1,10 +1,7 @@
-import calendar
-from datetime import datetime
 from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Query, Depends, Header
 from backend.services.finance_service import build_transactions, to_cents
-from backend.models.schemas import MONTH_PATTERN
-from backend.models.schemas import TransactionCreate, TransactionUpdate, TransactionResponse
+from backend.models.schemas import MONTH_PATTERN, TransactionCreate, TransactionUpdate, TransactionResponse
 from backend.services.auth_service import get_current_user
 import backend.services.firestore_service as fs
 
@@ -13,21 +10,6 @@ router = APIRouter(
     tags=["transactions"],
     dependencies=[Depends(get_current_user)],
 )
-
-VALID_CATEGORIES = [
-    "alimentacao", "transporte", "moradia", "lazer",
-    "saude", "educacao", "salario", "freelance", "outros"
-]
-
-
-def add_months(date_str: str, months_to_add: int) -> str:
-    dt = datetime.strptime(date_str, "%Y-%m-%d")
-    month = dt.month - 1 + months_to_add
-    year = dt.year + month // 12
-    month = month % 12 + 1
-    day = min(dt.day, calendar.monthrange(year, month)[1])
-    return f"{year:04d}-{month:02d}-{day:02d}"
-
 
 @router.post("", response_model=TransactionResponse, status_code=201)
 def create_transaction(

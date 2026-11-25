@@ -55,9 +55,18 @@ const Transactions = {
   },
 
   async _load(monthKey) {
-    const txs = await API.get(`/api/transactions?month=${monthKey}&limit=200`);
-    this._allTransactions = txs;
-    this._buildCatChips(txs);
+    this._month = monthKey;
+    this._allTransactions = [];
+    await this._loadMore();
+  },
+
+  async _loadMore(cursor = '') {
+    const month = this._month;
+    const result = await API.get(`/api/transactions/page?month=${month}&limit=200${cursor ? '&cursor=' + encodeURIComponent(cursor) : ''}`);
+    if (State.currentPage !== 'transactions' || month !== this._month) return;
+    this._allTransactions.push(...result.items);
+    this._nextCursor = result.next_cursor;
+    this._buildCatChips(this._allTransactions);
     this._applyFilters();
   },
 
@@ -107,6 +116,14 @@ const Transactions = {
     if (this._activeType) filtered = filtered.filter(t => t.type === this._activeType);
     if (this._activeCat)  filtered = filtered.filter(t => t.category === this._activeCat);
     this._render(filtered);
+    if (this._nextCursor) {
+      const list = document.getElementById('tx-list');
+      const button = document.createElement('button');
+      button.className = 'btn btn-secondary';
+      button.textContent = 'Carregar mais transacoes (filtros aplicados aos itens carregados)';
+      button.onclick = async () => { button.disabled = true; try { await this._loadMore(this._nextCursor); } catch (e) { button.disabled = false; toast(e.message, 'error'); } };
+      list?.appendChild(button);
+    }
   },
 
   _render(transactions) {
@@ -147,7 +164,7 @@ const Transactions = {
           </div>
           <div class="recent-tx-list">
             ${txs.map(tx => `
-              <div class="tx-item-compact transaction-row-interactive" id="tx-${tx.id}" data-tx='${JSON.stringify(tx).replace(/'/g, "&#39;")}' role="button" tabindex="0" aria-label="Editar ${escapeHTML(tx.description)}">
+              <div class="tx-item-compact transaction-row-interactive" id="tx-${tx.id}" data-tx='${escapeHTML(JSON.stringify(tx))}' role="button" tabindex="0" aria-label="Editar ${escapeHTML(tx.description)}">
                 <div class="tx-item-left">
                   <div class="tx-icon-circle ${tx.type}">
                     <i data-lucide="${this._catIcon[tx.category] || 'package'}" style="width:18px;height:18px;"></i>
@@ -161,7 +178,7 @@ const Transactions = {
                   <div class="tx-amount ${tx.type}">
                     ${tx.type === 'expense' ? '-' : '+'}${formatCurrency(tx.amount)}
                   </div>
-                  <button class="topbar-btn tx-action-btn btn-edit-tx" data-tx='${JSON.stringify(tx).replace(/'/g, "&#39;")}' title="Editar" aria-label="Editar ${escapeHTML(tx.description)}">
+                  <button class="topbar-btn tx-action-btn btn-edit-tx" data-tx='${escapeHTML(JSON.stringify(tx))}' title="Editar" aria-label="Editar ${escapeHTML(tx.description)}">
                     <i data-lucide="pencil" style="width:14px;height:14px;"></i>
                   </button>
                   <button class="topbar-btn tx-action-btn btn-delete-tx" data-tx-id="${tx.id}" title="Excluir" aria-label="Excluir ${escapeHTML(tx.description)}">

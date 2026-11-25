@@ -13,6 +13,19 @@ function escapeHTML(str) {
 const API_BASE = '';
 
 const API = {
+  _controller: new AbortController(),
+  _session: 0,
+  cancelReads() { this._controller.abort(); this._controller = new AbortController(); },
+  resetSession() { this._session++; this.cancelReads(); },
+  async _fetch(path, options = {}) {
+    const session = this._session;
+    const signal = options.method && options.method !== 'GET'
+      ? AbortSignal.timeout(35000)
+      : AbortSignal.any([this._controller.signal, AbortSignal.timeout(35000)]);
+    const response = await fetch(API_BASE + path, { ...options, signal, cache: 'no-store' });
+    if (session !== this._session) throw new DOMException('Sessao encerrada', 'AbortError');
+    return response;
+  },
   async _getHeaders(customHeaders = {}) {
     const headers = { 'Content-Type': 'application/json', ...customHeaders };
     if (window.Auth && typeof window.Auth.getToken === 'function') {
@@ -24,7 +37,7 @@ const API = {
     return headers;
   },
 
-  _handleStatus(res) {
+  async _handleStatus(res) {
     if (res.status === 401) {
       if (window.Auth) window.Auth.logout();
       throw new Error("Sessão expirada. Faça login novamente.");
@@ -34,47 +47,47 @@ const API = {
       if (window.Auth) window.Auth.logout();
       throw new Error("Acesso não autorizado para este e-mail.");
     }
-    if (res.status === 503) {
-      throw new Error("Serviço de autenticação temporariamente indisponível. Tente novamente.");
-    }
+
     if (!res.ok) {
-      throw new Error(`Erro na requisição (${res.status})`);
+      const body = await res.json().catch(() => ({}));
+      const detail = typeof body.detail === 'string' ? body.detail : 'Verifique os campos e tente novamente.';
+      throw new Error(`${detail} (${res.status})`);
     }
   },
 
   async get(path) {
     const headers = await this._getHeaders();
-    const res = await fetch(API_BASE + path, { headers });
-    this._handleStatus(res);
+    const res = await this._fetch(path, { headers });
+    await this._handleStatus(res);
     return res.json();
   },
 
-  async post(path, body) {
-    const headers = await this._getHeaders();
-    const res = await fetch(API_BASE + path, {
+  async post(path, body, customHeaders = {}) {
+    const headers = await this._getHeaders(customHeaders);
+    const res = await this._fetch(path, {
       method: 'POST',
       headers,
       body: JSON.stringify(body),
     });
-    this._handleStatus(res);
+    await this._handleStatus(res);
     return res.json();
   },
 
   async put(path, body) {
     const headers = await this._getHeaders();
-    const res = await fetch(API_BASE + path, {
+    const res = await this._fetch(path, {
       method: 'PUT',
       headers,
       body: JSON.stringify(body),
     });
-    this._handleStatus(res);
+    await this._handleStatus(res);
     return res.json();
   },
 
   async delete(path) {
     const headers = await this._getHeaders();
-    const res = await fetch(API_BASE + path, { method: 'DELETE', headers });
-    this._handleStatus(res);
+    const res = await this._fetch(path, { method: 'DELETE', headers });
+    await this._handleStatus(res);
     return res.status !== 204 ? res.json() : null;
   },
 };
@@ -85,6 +98,8 @@ const State = {
   currentMonth: new Date().toLocaleDateString('sv').slice(0, 7),  // "YYYY-MM" local
   pendingTransactionFilter: '',
   editingTxId: null,
+  editingVersion: 0,
+  createAttempt: null,
   selectedType: 'expense',
   selectedCategory: '',
   categories: { expense: [], income: [] },
@@ -206,7 +221,10 @@ function navigate(page) {
   renderPage(page);
 }
 
+let renderGeneration = 0;
 async function renderPage(page) {
+  const generation = ++renderGeneration;
+  API.cancelReads();
   const content = document.getElementById('page-content');
   if (!content) return;
   content.setAttribute('aria-busy', 'true');
@@ -223,7 +241,8 @@ async function renderPage(page) {
       default: content.innerHTML = '<p>Página não encontrada</p>';
     }
   } catch (err) {
-    console.error(err);
+    if (generation !== renderGeneration || err.name === "AbortError") return;
+    console.error(err.name);
     content.innerHTML = `
       <div class="empty-state">
         <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -232,6 +251,7 @@ async function renderPage(page) {
       </div>`;
   }
 
+  if (generation !== renderGeneration) return;
   content.classList.remove('page-loading');
   content.removeAttribute('aria-busy');
   requestAnimationFrame(() => content.classList.add('page-ready'));
@@ -243,6 +263,7 @@ const App = {
   async openAddModal() {
     State.lastFocusedElement = document.activeElement;
     State.editingTxId = null;
+    State.createAttempt = null;
     document.getElementById('modal-title').textContent = 'Nova Transação';
     document.getElementById('submit-btn').innerHTML = '<i data-lucide="check" style="width:16px;height:16px;"></i> Salvar';
     document.getElementById('transaction-form').reset();
@@ -262,6 +283,8 @@ const App = {
 
     const modal = document.getElementById('transaction-modal');
     modal.style.display = 'flex';
+    document.getElementById('app')?.setAttribute('inert', '');
+    requestAnimationFrame(() => document.getElementById('modal-close-btn')?.focus());
     document.body.classList.add('modal-open');
     modal.querySelector('.modal-content')?.scrollTo({ top: 0 });
     if (window.matchMedia('(min-width: 768px)').matches) {
@@ -273,6 +296,7 @@ const App = {
   async openEditModal(tx) {
     State.lastFocusedElement = document.activeElement;
     State.editingTxId = tx.id;
+    State.editingVersion = tx.version || 0;
     document.getElementById('modal-title').textContent = 'Editar Transação';
     document.getElementById('tx-amount').value = tx.amount;
     document.getElementById('tx-date').value = tx.date;
@@ -288,6 +312,8 @@ const App = {
 
     const modal = document.getElementById('transaction-modal');
     modal.style.display = 'flex';
+    document.getElementById('app')?.setAttribute('inert', '');
+    requestAnimationFrame(() => document.getElementById('modal-close-btn')?.focus());
     document.body.classList.add('modal-open');
     modal.querySelector('.modal-content')?.scrollTo({ top: 0 });
     if (window.matchMedia('(min-width: 768px)').matches) {
@@ -299,6 +325,7 @@ const App = {
   closeModal() {
     const modal = document.getElementById('transaction-modal');
     modal.style.display = 'none';
+    document.getElementById('app')?.removeAttribute('inert');
     document.body.classList.remove('modal-open');
     if (State.lastFocusedElement && typeof State.lastFocusedElement.focus === 'function') {
       State.lastFocusedElement.focus();
@@ -480,17 +507,22 @@ const App = {
 
     try {
       if (State.editingTxId) {
-        await API.put(`/api/transactions/${State.editingTxId}`, payload);
+        await API.put(`/api/transactions/${State.editingTxId}`, { ...payload, expected_version: State.editingVersion });
         toast('Transação atualizada!', 'success');
       } else {
-        await API.post('/api/transactions', payload);
+        const fingerprint = JSON.stringify(payload);
+        if (!State.createAttempt || State.createAttempt.fingerprint !== fingerprint) {
+          State.createAttempt = { fingerprint, key: crypto.randomUUID() };
+        }
+        await API.post('/api/transactions', payload, { 'Idempotency-Key': State.createAttempt.key });
+        State.createAttempt = null;
         toast('Transação adicionada!', 'success');
       }
       haptic(18);
       App.closeModal();
       renderPage(State.currentPage);
     } catch (err) {
-      toast('Erro ao salvar transação', 'error');
+      if (err.name !== 'AbortError') toast(err.message || 'Erro ao salvar transacao', 'error');
       console.error(err);
     } finally {
       btn.disabled = false;
@@ -516,6 +548,13 @@ window.App = App;
 
 // ─── Setup Event Listeners & Auth Init ───────────────────────────────────────
 window.onAppInit = async function () {
+  State.currentPage = 'dashboard';
+  State.pendingTransactionFilter = '';
+  document.querySelectorAll('[data-page]').forEach(el => {
+    el.classList.toggle('active', el.dataset.page === 'dashboard');
+    if (el.dataset.page === 'dashboard') el.setAttribute('aria-current', 'page');
+    else el.removeAttribute('aria-current');
+  });
   try {
     const data = await API.get('/api/transactions/categories');
     State.categories = data;
@@ -600,7 +639,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const code = err.code || "";
 
         if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') {
-          errorText = "E-mail ou senha incorretos. Verifique se a conta foi cadastrada no Firebase Console.";
+          errorText = "E-mail ou senha incorretos. Verifique se a conta foi cadastrada e tente novamente.";
         } else if (code === 'auth/invalid-api-key') {
           errorText = "FIREBASE_API_KEY inválida. Verifique o arquivo backend/.env";
         } else if (code === 'auth/user-disabled') {
@@ -724,6 +763,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }, { passive: true });
   }
 
+  document.getElementById('transaction-modal')?.addEventListener('keydown', (event) => {
+    if (event.key !== 'Tab') return;
+    const elements = [...event.currentTarget.querySelectorAll('button, input, select, textarea, [tabindex="0"]')]
+      .filter(el => !el.disabled && el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden');
+    const first = elements[0], last = elements[elements.length - 1];
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+  });
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       const profileSheet = document.getElementById('mobile-profile-sheet');
@@ -771,3 +818,22 @@ document.addEventListener('DOMContentLoaded', () => {
   // Inicializa o módulo Auth
   if (window.Auth) window.Auth.init();
 });
+
+window.resetFinanceSession = function () {
+  ++renderGeneration;
+  API.resetSession();
+  Chat._history = [];
+  Chat._summary = null;
+  Chat._isLoading = false;
+  Transactions._allTransactions = [];
+  Dashboard._lastEvolution = [];
+  Object.values(Dashboard.charts).forEach(chart => chart.destroy());
+  Dashboard.charts = {};
+  State.createAttempt = null;
+  State.editingTxId = null;
+  State.lastFocusedElement = null;
+  App.closeModal();
+  App.closeProfileSheet();
+  document.getElementById('transaction-form')?.reset();
+  document.getElementById('page-content')?.replaceChildren();
+};

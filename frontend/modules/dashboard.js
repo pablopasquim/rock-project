@@ -74,12 +74,7 @@ const Dashboard = {
     Object.values(this.charts).forEach(c => c.destroy());
     this.charts = {};
 
-    const [summary, byCategory, evolution, transactions] = await Promise.all([
-      API.get(`/api/dashboard/summary?month=${monthKey}`),
-      API.get(`/api/dashboard/by-category?month=${monthKey}`),
-      API.get('/api/dashboard/monthly-evolution?months=12'),
-      API.get(`/api/transactions?month=${monthKey}&limit=6`),
-    ]);
+    const { summary, evolution, transactions } = await API.get(`/api/dashboard/overview?month=${monthKey}`);
 
     this._renderSummaryCards(summary);
     this._renderBarChart(evolution);
@@ -110,7 +105,7 @@ const Dashboard = {
       <div class="purple-hero-card">
         <div class="purple-hero-top">
           <div>
-            <span class="hero-balance-title">Saldo Disponível · ${escapeHTML(formatMonthLabel(summary.month_key))}</span>
+            <span class="hero-balance-title">Resultado do mês · ${escapeHTML(formatMonthLabel(summary.month_key))}</span>
             <div class="hero-balance-amount" data-sensitive data-value="${escapeHTML(formatCurrency(summary.balance))}">${formatCurrency(summary.balance)}</div>
           </div>
           <button class="hero-privacy-toggle" id="hero-privacy-toggle" type="button" aria-pressed="false" aria-label="Ocultar valores">

@@ -15,6 +15,7 @@ const Auth = {
       const config = await res.json();
 
       this.isDevBypass = !!config.devBypass;
+      this.aiEnabled = !!config.aiEnabled;
 
       if (this.isDevBypass) {
         console.warn("⚠️ Modo Dev Bypass Ativo (Desenvolvimento Local)");
@@ -119,6 +120,7 @@ const Auth = {
   },
 
   _showLoginScreen() {
+    window.resetFinanceSession?.();
     const loginScreen = document.getElementById('login-screen');
     const mainApp = document.getElementById('app');
     const formPanel = document.querySelector('.login-form-panel');

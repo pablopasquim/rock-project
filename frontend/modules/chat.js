@@ -6,6 +6,11 @@ const Chat = {
   _summary: null,
 
   async render(container) {
+    if (this._month !== State.currentMonth) { this._history = []; this._month = State.currentMonth; }
+    if (!window.Auth?.aiEnabled) {
+      container.innerHTML = '<div class="empty-state"><h3>Assistente desativado</h3><p>Para evitar consumo de IA, o assistente esta desligado. Lancamentos, historico e resumo continuam disponiveis.</p></div>';
+      return;
+    }
     try {
       const [sugData, sumData] = await Promise.all([
         API.get('/api/chat/suggestions'),
@@ -124,7 +129,7 @@ const Chat = {
                 <i data-lucide="send" style="width:16px;height:16px;"></i>
               </button>
             </div>
-            <div class="advisor-input-hint">Powered by Gemini AI · Seus dados são privados</div>
+            <div class="advisor-input-hint">Gemini AI · Ao enviar, sua mensagem e resumos financeiros são compartilhados com o Google.</div>
           </div>
 
         </div>
@@ -335,6 +340,8 @@ const Chat = {
       messagesEl.querySelectorAll('.new-msg').forEach(el => el.classList.remove('new-msg'));
     });
 
+    const session = API._session;
+    const selectedMonth = State.currentMonth;
     try {
       const res = await API.post('/api/chat', {
         message,
@@ -342,6 +349,7 @@ const Chat = {
         history: this._history,
       });
 
+      if (session !== API._session || selectedMonth !== State.currentMonth) return;
       this._history = res.history;
       document.getElementById('typing-indicator')?.remove();
 
@@ -365,11 +373,12 @@ const Chat = {
       });
 
     } catch (err) {
+      if (err.name === "AbortError" || session !== API._session) return;
       document.getElementById('typing-indicator')?.remove();
       const isRateLimit = err.message && err.message.includes('429');
       const errText = isRateLimit
         ? 'Você enviou muitas mensagens. Aguarde um minuto antes de tentar novamente.'
-        : 'Não foi possível conectar com o Rock Advisor. Tente novamente.';
+        : (err.message || 'Nao foi possivel conectar com o Rock Advisor.');
 
       messagesEl.insertAdjacentHTML('beforeend', `
         <div class="advisor-msg-row assistant">

@@ -12,13 +12,6 @@ const History = {
   async render(container, monthKey) {
     this._currentMonth = monthKey;
 
-    try {
-      const data = await API.get('/api/history/months');
-      this._availableMonths = data.months || [];
-    } catch (e) {
-      this._availableMonths = [];
-    }
-
     container.innerHTML = `
       <div class="history-toolbar">
         <div class="month-nav">

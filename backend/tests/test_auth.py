@@ -14,6 +14,7 @@ import backend.services.auth_service as auth_service
 VALID_PROD_ENV = {
     "ENVIRONMENT": "production",
     "AUTH_DEV_BYPASS": "false",
+    "ALLOWED_USER_UIDS": "authorized-uid,test-user-uid",
     "GCP_PROJECT_ID": "my-real-project-id",
     "FIREBASE_PROJECT_ID": "my-real-project-id",
     "FIREBASE_API_KEY": "real-api-key-123456",

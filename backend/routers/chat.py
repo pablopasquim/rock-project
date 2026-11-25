@@ -1,3 +1,6 @@
+import os
+from datetime import datetime
+from zoneinfo import ZoneInfo
 import time
 import logging
 import threading
@@ -61,31 +64,31 @@ def chat(
     current_user: dict = Depends(get_current_user),
 ):
     """Envia mensagem para o Rock Advisor utilizando o mês selecionado."""
+    if os.getenv("AI_ENABLED", "false").lower() != "true":
+        raise HTTPException(503, "IA desativada para evitar consumo. Seus dados financeiros continuam disponiveis.")
     user_id = current_user.get("uid", "anonymous")
     check_rate_limit(user_id)
 
     try:
+        fs.reserve_ai_request(datetime.now(ZoneInfo("America/Sao_Paulo")).date().isoformat(),
+                              int(os.getenv("AI_DAILY_LIMIT", "20")))
         # Busca o contexto financeiro usando o month_key enviado pelo frontend
         financial_context = fs.get_financial_context(request.month_key)
 
-        # Trata o histórico recebido do cliente como NÃO CONFIÁVEL:
-        # Descarta mensagens 'assistant' enviadas pelo navegador para evitar Prompt Injection.
+        # Client history is untrusted conversation data, never authorization or facts.
         raw_history = request.history or []
-        user_history_clean = [
-            msg for msg in raw_history
-            if msg.role == "user" and msg.content.strip()
-        ][-4:]
+        user_history_clean = raw_history[-6:]
 
         response_text = gemini.chat_with_context(
             user_message=request.message,
-            history=user_history_clean,
+            history=[ChatMessage(role=m.role, content=m.content[:2000]) for m in user_history_clean],
             financial_context=financial_context,
         )
 
         # Recontrói o histórico confiável sem mensagens assistant fabricadas pelo navegador
         updated_history: List[ChatMessage] = []
         for m in user_history_clean:
-            updated_history.append(ChatMessage(role="user", content=m.content))
+            updated_history.append(ChatMessage(role=m.role, content=m.content))
 
         updated_history.append(ChatMessage(role="user", content=request.message))
         updated_history.append(ChatMessage(role="assistant", content=response_text))
@@ -94,7 +97,7 @@ def chat(
         return ChatResponse(response=response_text, history=updated_history)
 
     except ValueError as e:
-        logger.warning(f"Erro de validação ou configuração no chat: {e}")
+        logger.warning("ai_configuration_or_response_invalid")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Serviço de IA indisponível ou não configurado.",
@@ -102,7 +105,7 @@ def chat(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Erro interno no processamento do chat: {e}", exc_info=True)
+        logger.error("ai_request_failed", extra={"error_type": type(e).__name__})
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erro ao processar sua mensagem. Tente novamente mais tarde.",
@@ -112,4 +115,5 @@ def chat(
 @router.get("/suggestions")
 def get_suggestions():
     """Retorna sugestões de perguntas rápidas para o chat."""
-    return {"suggestions": gemini.get_quick_suggestions()}
+    return {"enabled": os.getenv("AI_ENABLED", "false").lower() == "true",
+            "suggestions": gemini.get_quick_suggestions()}

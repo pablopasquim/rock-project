@@ -1,7 +1,9 @@
 import calendar
 from datetime import datetime
 from typing import Optional, List
-from fastapi import APIRouter, HTTPException, Query, Depends
+from fastapi import APIRouter, HTTPException, Query, Depends, Header
+from backend.services.finance_service import build_transactions, to_cents
+from backend.models.schemas import MONTH_PATTERN
 from backend.models.schemas import TransactionCreate, TransactionUpdate, TransactionResponse
 from backend.services.auth_service import get_current_user
 import backend.services.firestore_service as fs
@@ -30,43 +32,21 @@ def add_months(date_str: str, months_to_add: int) -> str:
 @router.post("", response_model=TransactionResponse, status_code=201)
 def create_transaction(
     transaction: TransactionCreate,
+    idempotency_key: Optional[str] = Header(None, min_length=8, max_length=128, pattern=r"^[A-Za-z0-9_-]+$"),
     current_user: dict = Depends(get_current_user),
 ):
     """Cria uma nova transação (receita ou despesa), com suporte a parcelamento e metadados de autor."""
-    data = transaction.model_dump()
-    installments = data.pop("installments", None)
-
-    # Injeta metadados de auditoria do household
-    data["created_by_uid"] = current_user.get("uid")
-    data["created_by_email"] = current_user.get("email")
-
-    if installments and installments > 1 and data["type"] == "expense":
-        base_desc = data["description"]
-        base_date = data["date"]
-        total_amount = data["amount"]
-        
-        installment_amount = round(total_amount / installments, 2)
-        last_installment_amount = round(total_amount - (installment_amount * (installments - 1)), 2)
-
-        transactions_to_create = []
-        
-        for i in range(installments):
-            current_data = data.copy()
-            current_data["amount"] = last_installment_amount if i == installments - 1 else installment_amount
-            current_data["description"] = f"{base_desc} ({i+1}/{installments})"
-            current_data["date"] = add_months(base_date, i)
-            transactions_to_create.append(current_data)
-            
-        return fs.create_transactions_batch(transactions_to_create)
-    else:
-        return fs.create_transaction(data)
+    rows = build_transactions(transaction.model_dump(), current_user)
+    if idempotency_key:
+        return fs.create_idempotent(rows, current_user["uid"], idempotency_key, transaction.model_dump())
+    return fs.create_transactions_batch(rows) if len(rows) > 1 else fs.create_transaction(rows[0])
 
 
 @router.get("", response_model=List[TransactionResponse])
 def list_transactions(
-    month: Optional[str] = Query(None, description="Filtro por mês (YYYY-MM)"),
+    month: Optional[str] = Query(None, pattern=MONTH_PATTERN, description="Filtro por mês (YYYY-MM)"),
     category: Optional[str] = Query(None),
-    type: Optional[str] = Query(None, description="'expense' ou 'income'"),
+    type: Optional[str] = Query(None, pattern="^(expense|income)$", description="Tipo"),
     limit: int = Query(100, ge=1, le=500),
 ):
     """Lista transações com filtros opcionais."""
@@ -92,6 +72,8 @@ def update_transaction(
     data["updated_by_uid"] = current_user.get("uid")
     data["updated_by_email"] = current_user.get("email")
 
+    if "amount" in data:
+        data["amount_cents"] = to_cents(data["amount"])
     result = fs.update_transaction(tx_id, data)
     if not result:
         raise HTTPException(status_code=404, detail="Transação não encontrada")
@@ -99,9 +81,9 @@ def update_transaction(
 
 
 @router.delete("/{tx_id}", status_code=204)
-def delete_transaction(tx_id: str):
+def delete_transaction(tx_id: str, current_user: dict = Depends(get_current_user)):
     """Deleta uma transação."""
-    success = fs.delete_transaction(tx_id)
+    success = fs.delete_transaction(tx_id, current_user)
     if not success:
         raise HTTPException(status_code=404, detail="Transação não encontrada")
 
@@ -125,3 +107,19 @@ def get_categories():
             {"id": "outros", "label": "Outros", "icon": "more-horizontal"},
         ],
     }
+
+
+@router.get("/page")
+def transactions_page(month: str = Query(..., pattern=MONTH_PATTERN), limit: int = Query(200, ge=1, le=500),
+                      cursor: Optional[str] = Query(None, min_length=1, max_length=1500, pattern=r"^[^/]+$")):
+    return fs.get_transactions_page(month, limit, cursor)
+
+
+@router.get("/trash")
+def trash():
+    return fs.get_trash()
+
+
+@router.post("/{tx_id}/restore", response_model=TransactionResponse)
+def restore(tx_id: str, current_user: dict = Depends(get_current_user)):
+    return fs.restore_transaction(tx_id, current_user)

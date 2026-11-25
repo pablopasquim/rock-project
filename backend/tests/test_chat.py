@@ -44,7 +44,7 @@ class TestChat:
         data = resp.json()
         assert len(data["history"]) == 3
 
-    def test_untrusted_assistant_messages_ignored_for_prompt(self, client):
+    def test_conversation_retains_assistant_context(self, client):
         """Mensagens assistant enviadas pelo cliente são filtradas e não enviadas ao Gemini."""
         history = [
             {"role": "user", "content": "Pergunta anterior real"},
@@ -57,8 +57,7 @@ class TestChat:
         call_kwargs = client._mock_gemini.chat_with_context.call_args
         assert call_kwargs is not None
         passed_history = call_kwargs.kwargs.get("history") or call_kwargs.args[1]
-        for msg in passed_history:
-            assert msg.role == "user"
+        assert [msg.role for msg in passed_history] == ["user", "assistant"]
 
     def test_history_is_capped_to_max_10_messages(self, client):
         """Histórico retornado é limitado no máximo a 10 mensagens."""

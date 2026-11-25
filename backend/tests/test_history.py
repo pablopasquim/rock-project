@@ -63,8 +63,7 @@ class TestMonthDetail:
     def test_firestore_called_with_correct_month_key(self, client):
         client._mock_fs.get_transactions.return_value = []
         client.get("/api/history/2026/7")
-        client._mock_fs.get_summary_by_month.assert_called_with("2026-07")
-        client._mock_fs.get_by_category.assert_called_with("2026-07")
+        client._mock_fs.get_month_detail.assert_called_with("2026-07")
 
 
 class TestMonthComparison:
@@ -95,7 +94,7 @@ class TestMonthComparison:
                 "total_expenses": 150, "balance": 4850, "transaction_count": 2,
             },
         }
-        client._mock_fs.get_summary_by_month.side_effect = lambda mk: summaries[mk]
+        client._mock_fs.get_month_detail.side_effect = lambda mk: {**summaries[mk], "transactions": [], "by_category": []}
         client._mock_fs.get_transactions.return_value = []
         client._mock_fs.get_by_category.return_value = []
 

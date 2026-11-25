@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Query, Depends
+from fastapi import APIRouter, Query, Depends, Path
 from fastapi.responses import StreamingResponse
 from typing import List
 import io
 import csv
-from backend.models.schemas import MonthDetail, MonthComparison
+from backend.models.schemas import MonthDetail, MonthComparison, MONTH_PATTERN
+from backend.services.finance_service import csv_safe
 from backend.services.auth_service import get_current_user
 import backend.services.firestore_service as fs
 
@@ -22,42 +23,21 @@ def get_available_months():
 
 
 @router.get("/{year}/{month}", response_model=MonthDetail)
-def get_month_detail(year: int, month: int):
+def get_month_detail(year: int = Path(..., ge=1000, le=9999), month: int = Path(..., ge=1, le=12)):
     """Retorna detalhes completos de um mês específico."""
     month_key = f"{year:04d}-{month:02d}"
-    transactions = fs.get_transactions(month_key=month_key, limit=1000)
-    summary = fs.get_summary_by_month(month_key)
-    by_category = fs.get_by_category(month_key)
-
-    return {
-        "month_key": month_key,
-        "total_income": summary["total_income"],
-        "total_expenses": summary["total_expenses"],
-        "balance": summary["balance"],
-        "transactions": transactions,
-        "by_category": by_category,
-    }
+    return fs.get_month_detail(month_key)
 
 
 @router.get("/compare")
 def compare_months(
-    month_a: str = Query(..., description="Primeiro mês (YYYY-MM)"),
-    month_b: str = Query(..., description="Segundo mês (YYYY-MM)"),
+    month_a: str = Query(..., pattern=MONTH_PATTERN, description="Primeiro mês (YYYY-MM)"),
+    month_b: str = Query(..., pattern=MONTH_PATTERN, description="Segundo mês (YYYY-MM)"),
 ):
     """Compara dois meses lado a lado."""
 
-    def build_detail(mk: str):
-        transactions = fs.get_transactions(month_key=mk, limit=1000)
-        summary = fs.get_summary_by_month(mk)
-        by_category = fs.get_by_category(mk)
-        return {
-            "month_key": mk,
-            "total_income": summary["total_income"],
-            "total_expenses": summary["total_expenses"],
-            "balance": summary["balance"],
-            "transactions": transactions,
-            "by_category": by_category,
-        }
+    def build_detail(mk):
+        return fs.get_month_detail(mk)
 
     a = build_detail(month_a)
     b = build_detail(month_b)
@@ -72,9 +52,9 @@ def compare_months(
 
 
 @router.get("/export")
-def export_csv(month: str = Query(None, description="Filtrar por mês (YYYY-MM)")):
+def export_csv(month: str = Query(None, pattern=MONTH_PATTERN, description="Filtrar por mês (YYYY-MM)")):
     """Exporta transações em formato CSV."""
-    transactions = fs.get_transactions(month_key=month, limit=5000)
+    transactions = fs.get_all_transactions(month_key=month)
 
     output = io.StringIO()
     writer = csv.DictWriter(
@@ -84,7 +64,7 @@ def export_csv(month: str = Query(None, description="Filtrar por mês (YYYY-MM)"
     )
     writer.writeheader()
     for t in transactions:
-        writer.writerow(t)
+        writer.writerow({k: csv_safe(v) for k, v in t.items()})
 
     output.seek(0)
     filename = f"transacoes_{month or 'todas'}.csv"

@@ -38,10 +38,13 @@ def validate_auth_startup() -> None:
     dev_bypass = os.getenv("AUTH_DEV_BYPASS", "false").lower() in ("true", "1", "yes")
     environment = os.getenv("ENVIRONMENT", "development").lower()
 
-    if dev_bypass and environment == "production":
+    if dev_bypass and (environment == "production" or os.getenv("K_SERVICE")):
         raise RuntimeError("CRITICAL SECURITY ERROR: AUTH_DEV_BYPASS não é permitido em produção!")
 
-    if environment == "production":
+    if environment == "production" or os.getenv("K_SERVICE"):
+        uids = get_allowed_uids()
+        if not 1 <= len(uids) <= 2:
+            raise RuntimeError("Configure ALLOWED_USER_UIDS com um ou dois UIDs.")
         allowed_emails = get_allowed_emails()
         if not allowed_emails:
             raise RuntimeError("CRITICAL SECURITY ERROR: ALLOWED_USER_EMAILS está vazia em produção.")
@@ -84,7 +87,7 @@ def is_dev_bypass_active() -> bool:
     """Verifica se o modo dev bypass está ativado de forma segura (somente em desenvolvimento)."""
     dev_bypass = os.getenv("AUTH_DEV_BYPASS", "false").lower() in ("true", "1", "yes")
     environment = os.getenv("ENVIRONMENT", "development").lower()
-    return dev_bypass and environment == "development"
+    return dev_bypass and environment == "development" and not os.getenv("K_SERVICE")
 
 
 # Inicialização segura do Firebase Admin
@@ -93,7 +96,7 @@ _firebase_app = None
 def _init_firebase_admin():
     global _firebase_app
     if not firebase_admin._apps:
-        project_id = os.getenv("GCP_PROJECT_ID") or os.getenv("FIREBASE_PROJECT_ID")
+        project_id = os.getenv("FIREBASE_PROJECT_ID") or os.getenv("GCP_PROJECT_ID")
         environment = os.getenv("ENVIRONMENT", "development").lower()
         try:
             if project_id:
@@ -110,7 +113,7 @@ def verify_firebase_token(token_str: str) -> Dict[str, Any]:
     """Verifica o ID Token do Firebase usando a SDK Admin."""
     _init_firebase_admin()
     try:
-        decoded = auth.verify_id_token(token_str)
+        decoded = auth.verify_id_token(token_str, check_revoked=True)
         return decoded
     except auth.CertificateFetchError as e:
         logger.error("Falha de rede ao buscar certificados públicos do Firebase: %s", e)
@@ -120,7 +123,7 @@ def verify_firebase_token(token_str: str) -> Dict[str, Any]:
             headers={"Retry-After": "5"},
         ) from e
     except Exception as e:
-        logger.debug(f"Falha ao verificar Firebase ID token: {e}")
+        logger.debug("firebase_token_rejected")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token de autenticação inválido ou expirado.",
@@ -165,17 +168,17 @@ async def get_current_user(
             detail="Token não contém um e-mail válido.",
         )
 
-    # 4. Checagem de Lista de E-mails Permitidos (FAIL CLOSED)
-    allowed_emails = get_allowed_emails()
-    if not allowed_emails or email not in allowed_emails:
-        logger.warning(f"Acesso negado para e-mail não autorizado (fail-closed): {email}")
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Acesso não autorizado para este e-mail.",
-        )
+    # Authorize immutable UIDs, not unverified email claims.
+    if not uid or uid not in get_allowed_uids():
+        logger.warning("auth_access_denied")
+        raise HTTPException(status_code=403, detail="Conta nao autorizada.")
 
     return {
         "uid": uid,
         "email": email,
         "is_dev_bypass": False,
     }
+
+
+def get_allowed_uids() -> List[str]:
+    return list(dict.fromkeys(uid.strip() for uid in os.getenv("ALLOWED_USER_UIDS", "").split(",") if uid.strip()))

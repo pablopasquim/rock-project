@@ -58,5 +58,5 @@ logs/
 # Firebase CLI local cache
 .firebase/
 
-# Local image-generation intermediates
-tmp/imagegen/
+# Local scratch (image-gen, PDFs, deploy logs, caches)
+tmp/

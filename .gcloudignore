@@ -2,8 +2,27 @@
 .git
 .gitignore
 .venv/
+venv/
 env/
 __pycache__/
 *.pyc
 .pytest_cache/
 .DS_Store
+
+# Secrets: never upload to Cloud Build
+.env
+.env.*
+*.env
+**/.env
+**/.env.*
+!backend/.env.example
+*.pem
+*credentials*.json
+*service-account*.json
+
+# Local scratch and caches
+tmp/
+.firebase/
+docs/
+REVIEW-*.md
+rcd-log.md

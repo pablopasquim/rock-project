@@ -9,6 +9,9 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from backend.services.http_security import RequestSafetyMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, Response
@@ -17,7 +20,8 @@ from dotenv import load_dotenv
 
 # Carrega variáveis de ambiente
 env_path = os.path.join(os.path.dirname(__file__), ".env")
-load_dotenv(env_path, override=True)
+if not os.getenv("K_SERVICE") and os.getenv("ENVIRONMENT", "development") != "production":
+    load_dotenv(env_path, override=False)
 
 from backend.services.auth_service import validate_auth_startup
 from backend.routers import transactions, dashboard, history, chat, config
@@ -46,6 +50,14 @@ app = FastAPI(
 )
 
 # ─── CORS Dinâmico ────────────────────────────────────────────────────────────
+app.add_middleware(RequestSafetyMiddleware)
+
+@app.exception_handler(RequestValidationError)
+async def invalid_request(request, exc):
+    return JSONResponse(status_code=422, content={"detail": [
+        {"loc": list(e["loc"]), "msg": e["msg"], "type": e["type"]} for e in exc.errors()
+    ]})
+
 raw_origins = os.getenv("APP_ORIGINS", "http://localhost:8080")
 origins = [o.strip() for o in raw_origins.split(",") if o.strip()]
 
@@ -73,7 +85,11 @@ async def add_security_headers(request: Request, call_next):
     response.headers["Content-Security-Policy"] = csp_policy
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
-    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    if request.url.path.startswith("/api/"):
+        response.headers["Cache-Control"] = "private, no-store"
+    response.headers["Content-Security-Policy"] += " frame-ancestors 'none'; base-uri 'self'; object-src 'none';"
     return response
 
 
@@ -94,17 +110,6 @@ def health_check():
 
 
 # ─── Serve Frontend (produção) ────────────────────────────────────────────────
-frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend")
-if os.path.exists(frontend_path):
-    app.mount("/static", StaticFiles(directory=frontend_path), name="static")
-
-    @app.get("/")
-    def serve_spa():
-        return FileResponse(os.path.join(frontend_path, "index.html"))
-
-    @app.get("/{path:path}")
-    def serve_spa_routes(path: str):
-        full_path = os.path.join(frontend_path, path)
-        if os.path.isfile(full_path):
-            return FileResponse(full_path)
-        return FileResponse(os.path.join(frontend_path, "index.html"))
+frontend_path = os.path.join(PROJECT_ROOT, "frontend")
+if not is_prod and not os.getenv("K_SERVICE") and os.path.isdir(frontend_path):
+    app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
